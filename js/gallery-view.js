@@ -36,10 +36,11 @@
         if (window.__SET_COINS__) window.__SET_COINS__(d.coins);
         if (window.__REFRESH_GALLERY__) window.__REFRESH_GALLERY__();
         toast(`Bought ${label} — it's in your collection.`);
-        // Drop it from the shelf list in place and show the collection, rather
-        // than reloading the whole page.
+        // Take it off the shelf in place and stay put, so you can keep
+        // browsing and buy more without being pulled to another view.
         if (window.__SHELF_REMOVE__) window.__SHELF_REMOVE__(meta.file);
-        setMode('owned');
+        owned = []; // stale until next visit to the collection
+        build();
       })
       .catch((e) => {
         toast(e.message);
