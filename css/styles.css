@@ -481,3 +481,69 @@ body.gallery-open .quote{display:none !important}
 }
 .gv-buy:hover:not(:disabled){filter:brightness(1.08)}
 .gv-buy:disabled{opacity:.55; cursor:default; filter:none}
+
+/* ---------- phones ----------
+   At 979px the layout already stacks. Below ~620px the three-column header
+   crushes the title into three lines and the shelf sits far below the fold,
+   so: drop the masthead, put the shelf directly under the stage, and make
+   touch targets bigger. */
+@media (max-width: 620px){
+  header{
+    grid-template-columns:1fr auto; gap:10px;
+    padding:10px 14px; position:sticky; top:0; z-index:10;
+    background:var(--paper); border-bottom:1px solid var(--line);
+  }
+  /* The piece name is already in the dossier — no need to wrap it up here. */
+  .masthead{display:none}
+  .brand .word{font-size:19px}
+  .head-tools{gap:6px}
+  .head-tools .counter{margin-right:2px; font-size:10px}
+  .icon-btn{width:36px; height:36px}       /* 36px min touch target */
+
+  main{padding:10px; gap:10px}
+  #stage{height:46vh; min-height:280px}
+
+  /* The 979px rule sets column-reverse, which buries the shelf below the
+     studio and maker's note. Put it back in source order so the shelf is the
+     first thing under the stage. */
+  .col.left{flex-direction:column !important; gap:10px}
+  .rail{order:0; padding:12px 10px 8px}
+  .account{order:1}
+  .finding{order:2}
+  .rail ul{gap:6px}
+  .spec-btn{min-width:132px; padding:7px}
+  .spec-btn .n{font-size:14px}
+
+  .card{border-radius:11px}
+  .dossier{padding:15px}
+  .dossier h2{font-size:23px}
+  .finding{padding:12px 14px}
+  .finding p{font-size:13.5px}
+
+  /* Controls sit under the stage rather than floating over it. */
+  .stagebar{
+    position:static; transform:none; width:auto;
+    margin:0; order:2; padding:8px 12px 8px 8px;
+  }
+
+  /* Full-width tap targets for the forms. */
+  .cb-login input, #cb-note, #tr-who{font-size:16px; padding:11px 12px}  /* 16px stops iOS zoom-on-focus */
+  .btn{padding:11px 16px; font-size:12px}
+  .cb-add{padding:12px}
+  .gv-buy{padding:12px 10px; font-size:11.5px}
+
+  /* Uploader slots and trade columns get cramped at this width. */
+  .cb-grid{gap:5px}
+  #tr-cols{grid-template-columns:1fr; gap:12px}
+
+  .quote{font-size:13px; padding:2px 12px 16px}
+  .gv-inner{padding:14px 12px 28px}
+  .gv-grid{grid-template-columns:repeat(auto-fill, minmax(132px, 1fr)); gap:10px}
+  .gv-name{font-size:14px}
+}
+
+/* Very narrow phones: one column of cards in the shop. */
+@media (max-width: 380px){
+  .gv-grid{grid-template-columns:1fr 1fr; gap:8px}
+  .brand .word{font-size:17px}
+}
