@@ -67,6 +67,14 @@
 
   function render(d) {
     $('who').textContent = 'Signed in as ' + d.admin;
+    // Always leave a trace of the last successful load, so "the page is blank"
+    // can be told apart from "the page never loaded".
+    const stamp = $('ad-stamp');
+    if (stamp) {
+      stamp.textContent = `Updated ${new Date().toLocaleTimeString()} · ${
+        (d.pendingListings || []).length
+      } pending · ${(d.users || []).length} collectors`;
+    }
 
     // Any of these can be absent if the payload shape ever changes; default
     // them so a missing field can never blank the whole dashboard.
@@ -197,10 +205,17 @@
           $('ad-body').hidden = false;
         } catch (err) {
           // A render error must not leave a blank body with no explanation.
+          // Show it on the page: a console-only error looks like a blank page.
           console.error('admin render failed', err, d);
           $('ad-gate').hidden = false;
           $('ad-body').hidden = true;
-          $('ad-msg').textContent = 'Loaded, but could not display: ' + err.message;
+          $('ad-msg').innerHTML =
+            `<strong>Loaded your data but could not display it.</strong><br>
+             ${esc(err.message)}<br>
+             <span class="ad-diag">${esc(
+               `listings:${(d.pendingListings || []).length} uploads:${(d.pendingUploads || []).length} ` +
+                 `live:${(d.live || []).length} users:${(d.users || []).length}`
+             )}</span>`;
         }
       })
       .catch((e) => {

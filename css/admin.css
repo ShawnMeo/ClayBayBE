@@ -78,3 +78,11 @@
 .ad-login input:focus{outline:none; border-color:var(--glaze)}
 .ad-login button{width:100%; padding:10px}
 .ad-gate a{color:var(--glaze)}
+
+/* Always-visible trace of the last load, so a blank body is diagnosable. */
+.ad-stamp{
+  font-family:var(--sans); font-size:10px; letter-spacing:.1em;
+  text-transform:uppercase; color:var(--ink-faint); margin:0 0 18px;
+}
+.ad-stamp:empty{display:none}
+.ad-diag{font-family:var(--sans); font-size:10px; color:var(--ink-faint)}
