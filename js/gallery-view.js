@@ -39,7 +39,7 @@
         // Drop it from the shelf list in place and show the collection, rather
         // than reloading the whole page.
         if (window.__SHELF_REMOVE__) window.__SHELF_REMOVE__(meta.file);
-        setTab('owned');
+        setMode('owned');
       })
       .catch((e) => {
         toast(e.message);
@@ -48,24 +48,47 @@
       });
   }
 
-  const setMode = (on) => {
-    open = on;
-    const view = $('gallery-view');
+  /* Three views on one button, cycling in order:
+       viewer  → the 3D stage
+       shelf   → grid of pieces for sale
+       owned   → grid of pieces you own
+     The icon shows the view you'd go to next, matching how the play/pause
+     button in the stage bar already behaves. */
+  const VIEWS = ['viewer', 'shelf', 'owned'];
+  const NEXT_LABEL = { viewer: 'The Shelf', shelf: 'My Collection', owned: 'Viewer' };
+  const NEXT_ICON = { viewer: 'ic-cube', shelf: 'ic-grid', owned: 'ic-shelf' };
+  const THIS_LABEL = { viewer: 'Viewer', shelf: 'The Shelf', owned: 'My Collection' };
+  let view = 'viewer';
+
+  const setMode = (next) => {
+    view = VIEWS.includes(next) ? next : 'viewer';
+    open = view !== 'viewer';
+
+    const panel = $('gallery-view');
     const btn = $('mode-toggle');
-    if (!view || !btn) return;
-    view.hidden = !on;
-    document.body.classList.toggle('gallery-open', on);
-    btn.setAttribute('aria-pressed', String(on));
-    btn.setAttribute('aria-label', on ? 'Back to the viewer' : 'Show gallery grid');
-    btn.setAttribute('title', on ? 'Viewer' : 'Gallery');
-    $('ic-grid').style.display = on ? 'none' : '';
-    $('ic-cube').style.display = on ? '' : 'none';
+    if (!panel || !btn) return;
+
+    panel.hidden = !open;
+    document.body.classList.toggle('gallery-open', open);
+
+    // The button advertises the *next* view so it reads as a control.
+    btn.setAttribute('aria-label', `View ${NEXT_LABEL[view]}`);
+    btn.setAttribute('title', NEXT_LABEL[view]);
+    for (const id of ['ic-cube', 'ic-grid', 'ic-shelf']) {
+      const el = $(id);
+      if (el) el.style.display = id === NEXT_ICON[view] ? '' : 'none';
+    }
+    const label = $('mode-label');
+    if (label) label.textContent = THIS_LABEL[view];
+
+    if (open) {
+      build();
+      if (view === 'owned') loadOwned().then(build);
+    }
   };
 
-  /* Two tabs: the shelf (things for sale) and your own collection (things you
-     own). They are different lists with different actions, so they get
-     separate views rather than one merged grid. */
-  let tab = 'shelf';
+  const cycle = () => setMode(VIEWS[(VIEWS.indexOf(view) + 1) % VIEWS.length]);
+
   let owned = [];
 
   const card = ({ thumb, name, sub, badge, onOpen }) => {
@@ -104,7 +127,7 @@
           name: meta.name || meta.file,
           sub: fmtSize(meta.size),
           onOpen: () => {
-            setMode(false);
+            setMode('viewer');
             window.__SHELF_SHOW__(index);
           },
         })
@@ -148,7 +171,7 @@
           sub: fmtSize(p.modelBytes),
           badge: p.serial,
           onOpen: () => {
-            setMode(false);
+            setMode('viewer');
             window.__OFF_SHELF__ = true;
             fetch(p.model)
               .then((r) => {
@@ -173,12 +196,9 @@
     if (!grid) return;
     grid.innerHTML = '';
     const title = $('gv-title');
-    if (title) title.textContent = tab === 'shelf' ? 'The Shelf' : 'My Collection';
-    document.querySelectorAll('.gv-tab').forEach((b) =>
-      b.setAttribute('aria-selected', String(b.dataset.tab === tab))
-    );
-    if (tab === 'shelf') buildShelf(grid);
-    else buildOwned(grid);
+    if (title) title.textContent = view === 'owned' ? 'My Collection' : 'The Shelf';
+    if (view === 'owned') buildOwned(grid);
+    else buildShelf(grid);
   };
 
   /* Owned pieces come from the same endpoint the rail gallery uses. */
@@ -198,24 +218,15 @@
       });
   };
 
-  const setTab = (next) => {
-    tab = next;
-    build();
-    if (next === 'owned') loadOwned().then(build);
-  };
-
   const start = () => {
     const btn = $('mode-toggle');
-    if (btn) btn.addEventListener('click', () => setMode(!open));
+    if (btn) btn.addEventListener('click', cycle);
     document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && open) setMode(false);
+      if (e.key === 'Escape' && open) setMode('viewer');
     });
-    document.querySelectorAll('.gv-tab').forEach((b) =>
-      b.addEventListener('click', () => setTab(b.dataset.tab))
-    );
     // Signing in or out changes what "My Collection" should show.
     window.addEventListener('claybay:session', () => {
-      if (tab === 'owned') loadOwned().then(build);
+      if (view === 'owned') loadOwned().then(build);
     });
     build();
   };
