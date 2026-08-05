@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ClayBay · Admin</title>
-<link rel="stylesheet" href="css/fonts.css">
-<link rel="stylesheet" href="css/styles.css">
-<link rel="stylesheet" href="css/admin.css">
+<link rel="stylesheet" href="css/fonts.css?v=c9ef497b">
+<link rel="stylesheet" href="css/styles.css?v=6f8e3c0d">
+<link rel="stylesheet" href="css/admin.css?v=158eed73">
 </head>
 <body class="admin-body">
 <header>
@@ -30,6 +30,11 @@
 <main class="ad-main">
   <div id="ad-gate" class="ad-gate">
     <p class="ad-note" id="ad-msg">Checking your access…</p>
+    <form class="ad-login" id="ad-login" hidden>
+      <input id="ad-user" type="text" placeholder="Username" autocomplete="username" maxlength="32" aria-label="Username">
+      <input id="ad-pass" type="password" placeholder="Password" autocomplete="current-password" maxlength="72" aria-label="Password">
+      <button class="ad-btn ok" type="submit">Sign in</button>
+    </form>
   </div>
 
   <div id="ad-body" hidden>
@@ -60,6 +65,6 @@
 </main>
 
 <div id="toast" role="status"></div>
-<script src="js/admin.js"></script>
+<script src="js/admin.js?v=f6e5dcc5"></script>
 </body>
 </html>

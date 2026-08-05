@@ -67,3 +67,14 @@
   .ad-btn{flex:1; padding:9px 10px}
   .ad-section h2{font-size:19px}
 }
+
+/* Sign in without leaving the dashboard. */
+.ad-login{display:flex; flex-direction:column; gap:9px; max-width:280px; margin-top:14px}
+.ad-login input{
+  font-family:var(--sans); font-size:14px; color:var(--ink);
+  background:var(--card-solid); border:1px solid var(--line);
+  border-radius:8px; padding:10px 12px; width:100%;
+}
+.ad-login input:focus{outline:none; border-color:var(--glaze)}
+.ad-login button{width:100%; padding:10px}
+.ad-gate a{color:var(--glaze)}

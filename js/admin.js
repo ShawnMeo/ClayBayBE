@@ -191,11 +191,51 @@
       .catch((e) => {
         $('ad-gate').hidden = false;
         $('ad-body').hidden = true;
-        $('ad-msg').textContent =
-          e.status === 403
-            ? 'This account is not an admin. Sign in on the main site as an admin user, then reload.'
-            : e.message;
+        if (e.status !== 403) {
+          $('ad-msg').textContent = e.message;
+          return;
+        }
+        // 403 means either "not signed in" or "signed in as the wrong user" —
+        // they need different fixes, so say which one it is.
+        fetch('/api/me', { cache: 'no-store' })
+          .then((r) => r.json())
+          .then((me) => {
+            $('ad-msg').innerHTML = me.user
+              ? `Signed in as <strong>${esc(me.user)}</strong>, which is not an admin account.
+                 Sign in below with an admin account.`
+              : 'Sign in with an admin account to review listings.';
+            $('ad-login').hidden = false;
+            $('ad-user').focus();
+          })
+          .catch(() => {
+            $('ad-msg').textContent = 'Could not reach the server.';
+          });
       });
+
+  // Sign in without leaving the page. Same endpoint the main site uses, so a
+  // successful login sets the same session cookie.
+  const form = $('ad-login');
+  if (form) {
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const btn = form.querySelector('button');
+      btn.disabled = true;
+      api('/api/auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'login', user: $('ad-user').value, password: $('ad-pass').value }),
+      })
+        .then(() => {
+          form.hidden = true;
+          $('ad-msg').textContent = 'Checking your access…';
+          return load();
+        })
+        .catch((err) => toast(err.message))
+        .finally(() => {
+          btn.disabled = false;
+        });
+    });
+  }
 
   load();
   setInterval(load, 30000); // keep the queue fresh while it sits open

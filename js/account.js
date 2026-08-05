@@ -23,6 +23,7 @@
   let user = null;
   let coins = null;
   let price = 200;
+  let admin = false;
   let staged = []; // { file, view, dataUrl }
   let projects = [];
   let polling = null;
@@ -44,6 +45,8 @@
         user = d.user || null;
         coins = typeof d.coins === 'number' ? d.coins : null;
         price = d.price || price;
+        admin = !!d.admin;
+        showAdminLink();
       })
       .catch(() => {
         user = null;
@@ -66,6 +69,7 @@
       .then((d) => {
         user = d.user;
         coins = d.coins;
+        loadSession().then(showAdminLink);
         render();
         refresh();
         toast(action === 'register' ? `Welcome, ${user} — ${coins.toLocaleString()} Coins to start.` : `Signed in as ${user}.`);
@@ -76,6 +80,8 @@
     authCall('logout').catch(() => {});
     user = null;
     coins = null;
+    admin = false;
+    showAdminLink();
     projects = [];
     staged = [];
     stopPolling();
@@ -404,6 +410,26 @@
       }
       ul.appendChild(li);
     }
+  }
+
+  /* An Admin link appears in the header only for admin accounts. Hiding it
+     is convenience, not security — /api/admin is enforced server-side. */
+  function showAdminLink() {
+    const tools = document.querySelector('.head-tools');
+    if (!tools) return;
+    let link = document.getElementById('admin-link');
+    if (!admin) {
+      if (link) link.remove();
+      return;
+    }
+    if (link) return;
+    link = document.createElement('a');
+    link.id = 'admin-link';
+    link.className = 'admin-link';
+    link.href = '/admin.html';
+    link.textContent = 'Admin';
+    link.title = 'Review listings and submissions';
+    tools.insertBefore(link, tools.firstChild);
   }
 
   /* ---------- boot ---------- */

@@ -649,3 +649,12 @@ body.gallery-open .quote{display:none !important}
 .gv-sell.is-live .gv-price{color:inherit; border-left-color:rgba(255,255,255,.4)}
 /* A listed piece stays marked even when not hovered. */
 .gv-card.is-listed .gv-actions{opacity:1; transform:none}
+
+/* Admin link in the header — only rendered for admin accounts. */
+.admin-link{
+  font-family:var(--sans); font-size:9px; font-weight:700;
+  letter-spacing:.14em; text-transform:uppercase; text-decoration:none;
+  color:var(--clay); border:1px solid var(--clay); border-radius:999px;
+  padding:4px 9px; margin-right:4px; white-space:nowrap;
+}
+.admin-link:hover{background:var(--clay); color:#fff}
