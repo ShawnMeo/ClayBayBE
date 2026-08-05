@@ -1,6 +1,8 @@
 [build]
   publish = "."
-  command = "node build-manifest.js"
+  # build-cachebust stamps ?v=<hash> onto css/js so a deploy actually reaches
+  # browsers that cached the previous version.
+  command = "node build-manifest.js && node build-cachebust.js"
 
 [functions]
   node_bundler = "esbuild"
@@ -40,3 +42,15 @@
   for = "/models/manifest.json"
   [headers.values]
     Cache-Control = "public, max-age=60, must-revalidate"
+
+# index.html carries the ?v= stamps that point at everything else, so it must
+# never be served from cache — a stale copy would keep pointing at stale CSS.
+[[headers]]
+  for = "/"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+[[headers]]
+  for = "/index.html"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
