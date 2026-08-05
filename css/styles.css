@@ -572,6 +572,9 @@ body.gallery-open .quote{display:none !important}
 .mode-label{
   font-family:var(--sans); font-size:9px; font-weight:600;
   letter-spacing:.14em; text-transform:uppercase; color:var(--ink-faint);
-  min-width:76px; margin-left:-2px;
+  /* Fixed width, not min-width: a longer label would otherwise push the
+     prev/next arrows sideways as you cycle views. */
+  width:74px; flex:none; margin-left:-2px;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
 }
 @media (max-width: 620px){ .mode-label{display:none} }

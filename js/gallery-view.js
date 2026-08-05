@@ -55,9 +55,9 @@
      The icon shows the view you'd go to next, matching how the play/pause
      button in the stage bar already behaves. */
   const VIEWS = ['viewer', 'shelf', 'owned'];
-  const NEXT_LABEL = { viewer: 'The Shelf', shelf: 'My Collection', owned: 'Viewer' };
+  const NEXT_LABEL = { viewer: 'The Shelf', shelf: 'Collection', owned: 'Viewer' };
   const NEXT_ICON = { viewer: 'ic-cube', shelf: 'ic-grid', owned: 'ic-shelf' };
-  const THIS_LABEL = { viewer: 'Viewer', shelf: 'The Shelf', owned: 'My Collection' };
+  const THIS_LABEL = { viewer: 'Viewer', shelf: 'The Shelf', owned: 'Collection' };
   let view = 'viewer';
 
   const setMode = (next) => {
@@ -196,7 +196,7 @@
     if (!grid) return;
     grid.innerHTML = '';
     const title = $('gv-title');
-    if (title) title.textContent = view === 'owned' ? 'My Collection' : 'The Shelf';
+    if (title) title.textContent = view === 'owned' ? 'Collection' : 'The Shelf';
     if (view === 'owned') buildOwned(grid);
     else buildShelf(grid);
   };
@@ -224,7 +224,7 @@
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && open) setMode('viewer');
     });
-    // Signing in or out changes what "My Collection" should show.
+    // Signing in or out changes what "Collection" should show.
     window.addEventListener('claybay:session', () => {
       if (view === 'owned') loadOwned().then(build);
     });
