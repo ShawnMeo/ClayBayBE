@@ -190,9 +190,47 @@
     });
   };
 
+  /* On phones the left rail is hidden, so the studio card has nowhere to live.
+     Move the real nodes (not copies) into whichever grid view they belong to,
+     so every existing event handler keeps working:
+       shop view       -> who you are + Coins
+       collection view -> the "new piece from photos" uploader
+     Above the phone breakpoint they go back to the rail card. */
+  const PHONE = () => window.matchMedia('(max-width: 620px)').matches;
+
+  const placeStudio = () => {
+    const slot = $('gv-studio');
+    const rail = $('cb-account');
+    const identity = $('cb-identity');
+    const maker = $('cb-maker');
+    if (!slot || !rail) return;
+
+    // Park whichever nodes we borrowed back in the rail first, so switching
+    // views can always find them — appendChild moves, it doesn't copy.
+    if (identity && identity.parentElement !== rail) rail.appendChild(identity);
+    if (maker && maker.parentElement !== rail) rail.appendChild(maker);
+    slot.innerHTML = '';
+
+    if (!PHONE() || !identity) {
+      slot.hidden = true;
+      return;
+    }
+
+    slot.hidden = false;
+    const wrap = document.createElement('div');
+    wrap.className = 'card account gv-studio-card';
+    if (view === 'owned') {
+      if (maker) wrap.appendChild(maker);
+    } else {
+      wrap.appendChild(identity);
+    }
+    slot.appendChild(wrap);
+  };
+
   const build = () => {
     const grid = $('gv-grid');
     if (!grid) return;
+    placeStudio();
     grid.innerHTML = '';
     const title = $('gv-title');
     if (title) title.textContent = view === 'owned' ? 'Collection' : 'The Shelf';
@@ -223,9 +261,15 @@
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && open) setMode('viewer');
     });
-    // Signing in or out changes what "Collection" should show.
+    // Signing in or out re-renders the studio card, so its nodes must be
+    // re-placed; it also changes what "Collection" should show.
     window.addEventListener('claybay:session', () => {
+      if (open) placeStudio();
       if (view === 'owned') loadOwned().then(build);
+    });
+    // Rotating a phone can cross the breakpoint in either direction.
+    window.matchMedia('(max-width: 620px)').addEventListener('change', () => {
+      placeStudio();
     });
     build();
   };

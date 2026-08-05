@@ -530,16 +530,22 @@ body.gallery-open .quote{display:none !important}
   main{padding:10px; gap:10px}
   #stage{height:46vh; min-height:280px}
 
-  /* The 979px rule sets column-reverse, which buries the shelf below the
-     studio and maker's note. Put it back in source order so the shelf is the
-     first thing under the stage. */
+  /* Phone first page is just: viewer, the wheel, maker's note.
+     Browsing and buying live in the shop/collection views, reached from the
+     header button — so the rails and the dossier are hidden here. */
   .col.left{flex-direction:column !important; gap:10px}
-  .rail{order:0; padding:12px 10px 8px}
-  .account{order:1}
-  .finding{order:2}
-  .rail ul{gap:6px}
-  .spec-btn{min-width:132px; padding:7px}
-  .spec-btn .n{font-size:14px}
+  .rail{display:none}                 /* shelf + your pieces rails */
+  .col.right{display:none}            /* the visiting-piece dossier */
+  .account{order:2}                   /* studio moves into the grid views */
+  #cb-trades{order:3}
+  .finding{order:1}                   /* maker's note, right after the wheel */
+
+  /* The wheel sits directly under the viewer instead of floating over it. */
+  main{display:flex; flex-direction:column}
+  #stage{order:0}
+  .stagebar{order:1}
+  .col.left{order:2}
+  .quote{order:4}
 
   .card{border-radius:11px}
   .dossier{padding:15px}
@@ -550,7 +556,7 @@ body.gallery-open .quote{display:none !important}
   /* Controls sit under the stage rather than floating over it. */
   .stagebar{
     position:static; transform:none; width:auto;
-    margin:0; order:2; padding:8px 12px 8px 8px;
+    margin:0; padding:8px 12px 8px 8px;
   }
 
   /* Full-width tap targets for the forms. */
@@ -618,3 +624,19 @@ body.gallery-open .quote{display:none !important}
 @media (hover: none){
   .gv-actions{opacity:1; transform:none}
 }
+
+/* Nodes get moved between the rail and the grid, so pin their order in the
+   rail rather than relying on DOM sequence. */
+#cb-account{display:flex; flex-direction:column}
+#cb-account .cb-userbar{order:0}
+#cb-account #cb-identity{order:1}
+#cb-account #cb-maker{order:2}
+
+/* Studio card relocated into the shop / collection views on phones. */
+#gv-studio{margin-bottom:18px}
+#gv-studio:empty{display:none}
+.gv-studio-card{padding:12px 14px}
+.gv-studio-card .cb-who{margin:0}
+.gv-studio-card .cb-add{margin:0}
+/* It only belongs in the grid on phones. */
+@media (min-width: 621px){ #gv-studio{display:none} }

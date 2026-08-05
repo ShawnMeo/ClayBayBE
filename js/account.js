@@ -274,25 +274,27 @@
         <span class="eyebrow">Your Studio</span>
         <button class="cb-link" id="cb-out" type="button">Sign out</button>
       </div>
-      <div class="cb-who">
+      <div class="cb-who" id="cb-identity">
         <span class="cb-avatar">${esc(user[0].toUpperCase())}</span>
         <span class="cb-name-wrap">
           <span>${esc(user)}</span>
           <span class="cb-coins" id="cb-coins">${coins === null ? '—' : coins.toLocaleString()} Coins</span>
         </span>
       </div>
-      <button class="cb-add" id="cb-add" type="button" ${pending ? 'disabled' : ''}
-              aria-expanded="false" aria-controls="cb-uploader"
-              title="${pending ? 'Waiting on your current piece' : 'Add reference photos'}">
-        <span class="cb-plus" aria-hidden="true">+</span>
-        <span>${pending ? 'Processing your piece…' : 'New piece from photos'}</span>
-      </button>
-      <div id="cb-uploader" class="cb-uploader" hidden>
-        <p class="cb-hint">Up to ${MAX_IMAGES} photos — front, back, left, right, top, bottom.</p>
-        <div class="cb-grid" id="cb-staged"></div>
-        <input id="cb-file" type="file" accept="image/png,image/jpeg,image/webp" multiple hidden>
-        <input id="cb-note" type="text" maxlength="120" placeholder="Name or note (optional)" aria-label="Note">
-        <button class="btn" id="cb-submit" type="button">Send for processing</button>
+      <div id="cb-maker">
+        <button class="cb-add" id="cb-add" type="button" ${pending ? 'disabled' : ''}
+                aria-expanded="false" aria-controls="cb-uploader"
+                title="${pending ? 'Waiting on your current piece' : 'Add reference photos'}">
+          <span class="cb-plus" aria-hidden="true">+</span>
+          <span>${pending ? 'Processing your piece…' : 'New piece from photos'}</span>
+        </button>
+        <div id="cb-uploader" class="cb-uploader" hidden>
+          <p class="cb-hint">Up to ${MAX_IMAGES} photos — front, back, left, right, top, bottom.</p>
+          <div class="cb-grid" id="cb-staged"></div>
+          <input id="cb-file" type="file" accept="image/png,image/jpeg,image/webp" multiple hidden>
+          <input id="cb-note" type="text" maxlength="120" placeholder="Name or note (optional)" aria-label="Note">
+          <button class="btn" id="cb-submit" type="button">Send for processing</button>
+        </div>
       </div>`;
 
     $('cb-out').addEventListener('click', signOut);
