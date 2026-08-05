@@ -92,21 +92,25 @@
 
   let owned = [];
 
+  /* A gallery card: the image is the piece, the caption sits quietly beneath,
+     and any action (Buy) floats over the image on hover. The whole tile can't
+     be one <button> because it has to contain another one, so the open action
+     is a full-bleed overlay button behind the pill. */
   const card = ({ thumb, name, sub, badge, onOpen }) => {
-    const b = document.createElement('button');
-    b.className = 'gv-card';
-    b.type = 'button';
-    b.innerHTML = `
-      <span class="gv-thumb">${
-        thumb ? `<img src="${esc(thumb)}" alt="" loading="lazy">` : '<span class="gv-noimg" aria-hidden="true">◈</span>'
-      }</span>
-      <span class="gv-meta">
+    const fig = document.createElement('div');
+    fig.className = 'gv-card';
+    fig.innerHTML = `
+      <div class="gv-thumb">
+        ${thumb ? `<img src="${esc(thumb)}" alt="${esc(name)}" loading="lazy">` : '<span class="gv-noimg" aria-hidden="true">◈</span>'}
+        <button class="gv-open" type="button" aria-label="View ${esc(name)} in 3D"></button>
+        <span class="gv-actions"></span>
+      </div>
+      <div class="gv-meta">
         <span class="gv-name">${esc(name)}</span>
-        <span class="gv-sub">${esc(sub || '')}</span>
-        ${badge ? `<span class="gv-serial">${esc(badge)}</span>` : ''}
-      </span>`;
-    if (onOpen) b.addEventListener('click', onOpen);
-    return b;
+        <span class="gv-sub">${esc(sub || '')}${badge ? `<span class="gv-serial">${esc(badge)}</span>` : ''}</span>
+      </div>`;
+    if (onOpen) fig.querySelector('.gv-open').addEventListener('click', onOpen);
+    return fig;
   };
 
   const buildShelf = (grid) => {
@@ -120,27 +124,24 @@
     }
 
     shelf.forEach(({ meta, index }) => {
-      const row = document.createElement('div');
-      row.className = 'gv-item';
-      row.appendChild(
-        card({
-          thumb: meta.thumb ? 'models/' + meta.thumb : null,
-          name: meta.name || meta.file,
-          sub: fmtSize(meta.size),
-          onOpen: () => {
-            setMode('viewer');
-            window.__SHELF_SHOW__(index);
-          },
-        })
-      );
+      const tile = card({
+        thumb: meta.thumb ? 'models/' + meta.thumb : null,
+        name: meta.name || meta.file,
+        sub: fmtSize(meta.size),
+        onOpen: () => {
+          setMode('viewer');
+          window.__SHELF_SHOW__(index);
+        },
+      });
+      // The buy pill rides over the image, revealed on hover / focus.
       const buy = document.createElement('button');
       buy.className = 'gv-buy';
       buy.type = 'button';
       buy.dataset.file = meta.file;
-      buy.textContent = `Buy · ${PRICE} Coins`;
+      buy.innerHTML = `Buy <span class="gv-price">${PRICE}</span>`;
       buy.addEventListener('click', () => purchase(meta, buy));
-      row.appendChild(buy);
-      grid.appendChild(row);
+      tile.querySelector('.gv-actions').appendChild(buy);
+      grid.appendChild(tile);
     });
   };
 
@@ -163,32 +164,29 @@
     }
 
     done.forEach((p) => {
-      const row = document.createElement('div');
-      row.className = 'gv-item';
-      row.appendChild(
-        card({
-          thumb: p.thumb || null,
-          name: p.note || p.id,
-          sub: fmtSize(p.modelBytes),
-          badge: p.serial,
-          onOpen: () => {
-            setMode('viewer');
-            window.__OFF_SHELF__ = true;
-            fetch(p.model)
-              .then((r) => {
-                if (!r.ok) throw new Error(String(r.status));
-                return r.arrayBuffer();
-              })
-              .then((buf) => window.__LOAD_BUFFER__(buf, p.note || p.id, p.modelBytes || 0, null))
-              .catch(() => toast(`Could not load "${p.note || p.id}".`));
-          },
-        })
-      );
-      const foot = document.createElement('div');
-      foot.className = 'gv-owned-foot';
-      foot.textContent = p.traded ? 'Traded in' : p.boughtFromShelf ? 'Bought' : 'Made by you';
-      row.appendChild(foot);
-      grid.appendChild(row);
+      const tile = card({
+        thumb: p.thumb || null,
+        name: p.note || p.id,
+        sub: fmtSize(p.modelBytes),
+        badge: p.serial,
+        onOpen: () => {
+          setMode('viewer');
+          window.__OFF_SHELF__ = true;
+          fetch(p.model)
+            .then((r) => {
+              if (!r.ok) throw new Error(String(r.status));
+              return r.arrayBuffer();
+            })
+            .then((buf) => window.__LOAD_BUFFER__(buf, p.note || p.id, p.modelBytes || 0, null))
+            .catch(() => toast(`Could not load "${p.note || p.id}".`));
+        },
+      });
+      // Provenance as a quiet corner tag rather than a full-width bar.
+      const tag = document.createElement('span');
+      tag.className = 'gv-tag';
+      tag.textContent = p.traded ? 'Traded' : p.boughtFromShelf ? 'Bought' : 'Yours';
+      tile.querySelector('.gv-thumb').appendChild(tag);
+      grid.appendChild(tile);
     });
   };
 

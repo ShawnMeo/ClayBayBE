@@ -9,6 +9,7 @@
     "thumbs": "node build-thumbs.js"
   },
   "dependencies": {
-    "@netlify/blobs": "^8.1.0"
+    "@netlify/blobs": "^8.1.0",
+    "playwright-core": "^1.62.1"
   }
 }
