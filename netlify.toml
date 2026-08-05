@@ -43,14 +43,14 @@
   [headers.values]
     Cache-Control = "public, max-age=60, must-revalidate"
 
-# index.html carries the ?v= stamps that point at everything else, so it must
-# never be served from cache — a stale copy would keep pointing at stale CSS.
+# HTML pages carry the ?v= stamps that point at everything else, so they must
+# never be served from cache — a stale copy keeps pointing at stale CSS/JS.
 [[headers]]
   for = "/"
   [headers.values]
     Cache-Control = "public, max-age=0, must-revalidate"
 
 [[headers]]
-  for = "/index.html"
+  for = "/*.html"
   [headers.values]
     Cache-Control = "public, max-age=0, must-revalidate"

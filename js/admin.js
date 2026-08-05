@@ -68,12 +68,19 @@
   function render(d) {
     $('who').textContent = 'Signed in as ' + d.admin;
 
+    // Any of these can be absent if the payload shape ever changes; default
+    // them so a missing field can never blank the whole dashboard.
+    const pendingListings = d.pendingListings || [];
+    const pendingUploads = d.pendingUploads || [];
+    const live = d.live || [];
+    const users = d.users || [];
+
     /* ---- listings awaiting review ---- */
     const L = $('rows-listings');
     L.innerHTML = '';
-    $('c-listings').textContent = d.pendingListings.length;
-    if (!d.pendingListings.length) L.innerHTML = '<p class="ad-empty">Nothing waiting.</p>';
-    d.pendingListings.forEach((p) => {
+    $('c-listings').textContent = pendingListings.length;
+    if (!pendingListings.length) L.innerHTML = '<p class="ad-empty">Nothing waiting.</p>';
+    pendingListings.forEach((p) => {
       L.appendChild(
         row({
           thumb: p.thumb,
@@ -120,9 +127,9 @@
     /* ---- photo submissions ---- */
     const U = $('rows-uploads');
     U.innerHTML = '';
-    $('c-uploads').textContent = d.pendingUploads.length;
-    if (!d.pendingUploads.length) U.innerHTML = '<p class="ad-empty">No submissions waiting.</p>';
-    d.pendingUploads.forEach((p) => {
+    $('c-uploads').textContent = pendingUploads.length;
+    if (!pendingUploads.length) U.innerHTML = '<p class="ad-empty">No submissions waiting.</p>';
+    pendingUploads.forEach((p) => {
       U.appendChild(
         row({
           thumb: p.thumb,
@@ -135,9 +142,9 @@
     /* ---- live listings ---- */
     const V = $('rows-live');
     V.innerHTML = '';
-    $('c-live').textContent = d.live.length;
-    if (!d.live.length) V.innerHTML = '<p class="ad-empty">Nothing on sale from collectors.</p>';
-    d.live.forEach((p) => {
+    $('c-live').textContent = live.length;
+    if (!live.length) V.innerHTML = '<p class="ad-empty">Nothing on sale from collectors.</p>';
+    live.forEach((p) => {
       V.appendChild(
         row({
           thumb: p.thumb,
@@ -167,15 +174,15 @@
     /* ---- collectors ---- */
     const C = $('rows-users');
     C.innerHTML = '';
-    $('c-users').textContent = d.users.length;
-    d.users
+    $('c-users').textContent = users.length;
+    users
       .slice()
-      .sort((a, b) => b.coins - a.coins)
+      .sort((a, b) => (b.coins || 0) - (a.coins || 0))
       .forEach((u) => {
         C.appendChild(
           row({
-            title: u.name,
-            meta: `${u.coins.toLocaleString()} Coins · joined ${esc(ago(u.created))}`,
+            title: u.name || '(unnamed)',
+            meta: `${(u.coins || 0).toLocaleString()} Coins · joined ${esc(ago(u.created))}`,
           })
         );
       });
@@ -184,9 +191,17 @@
   const load = () =>
     api('/api/admin')
       .then((d) => {
-        $('ad-gate').hidden = true;
-        $('ad-body').hidden = false;
-        render(d);
+        try {
+          render(d);
+          $('ad-gate').hidden = true;
+          $('ad-body').hidden = false;
+        } catch (err) {
+          // A render error must not leave a blank body with no explanation.
+          console.error('admin render failed', err, d);
+          $('ad-gate').hidden = false;
+          $('ad-body').hidden = true;
+          $('ad-msg').textContent = 'Loaded, but could not display: ' + err.message;
+        }
       })
       .catch((e) => {
         $('ad-gate').hidden = false;
