@@ -10,7 +10,13 @@
 (() => {
   const SESSION_KEY = 'claybay.user';
   const MAX_IMAGES = 6;
-  const MAX_BYTES = 12 * 1024 * 1024;
+  // Phone photos are 5-15 MB each, but serverless request bodies cap out
+  // around 6 MB for the whole submission. Accept big files, then downscale
+  // in the browser so six of them still fit comfortably.
+  const MAX_BYTES = 25 * 1024 * 1024; // what we'll accept from the picker
+  const MAX_EDGE = 1600; // px, longest side after downscaling
+  const JPEG_QUALITY = 0.82;
+  const TARGET_BYTES = 700 * 1024; // aim per image after downscaling
   const OK_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
   const VIEWS = ['front', 'back', 'left', 'right', 'top', 'bottom'];
 
@@ -113,6 +119,45 @@
       fr.readAsDataURL(file);
     });
 
+  /* Downscale a photo to MAX_EDGE and re-encode as JPEG, so a six-photo
+     submission stays well under the serverless request-size cap. Returns a
+     data URL. Falls back to the original if anything goes wrong. */
+  const shrink = (file) =>
+    new Promise((resolve) => {
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        try {
+          const scale = Math.min(1, MAX_EDGE / Math.max(img.width, img.height));
+          // Already small enough and modestly sized? Keep it as-is.
+          if (scale === 1 && file.size <= TARGET_BYTES) return readFile(file).then(resolve);
+
+          const w = Math.max(1, Math.round(img.width * scale));
+          const h = Math.max(1, Math.round(img.height * scale));
+          const canvas = document.createElement('canvas');
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          ctx.imageSmoothingQuality = 'high';
+          // JPEG has no alpha, so flatten onto white first.
+          ctx.fillStyle = '#fff';
+          ctx.fillRect(0, 0, w, h);
+          ctx.drawImage(img, 0, 0, w, h);
+          resolve(canvas.toDataURL('image/jpeg', JPEG_QUALITY));
+        } catch {
+          readFile(file).then(resolve);
+        }
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        readFile(file).then(resolve);
+      };
+      img.src = url;
+    });
+
+  const dataUrlBytes = (u) => Math.round((String(u).split(',')[1] || '').length * 0.75);
+
   async function addFiles(fileList) {
     if (hasPending()) return toast('Your previous request is still processing.');
     const room = MAX_IMAGES - staged.length;
@@ -130,7 +175,7 @@
 
     const take = picked.slice(0, room);
     for (const f of take) {
-      staged.push({ file: f, view: VIEWS[staged.length] || 'view', dataUrl: await readFile(f) });
+      staged.push({ file: f, view: VIEWS[staged.length] || 'view', dataUrl: await shrink(f) });
     }
     if (picked.length > room) toast(`Only ${room} more would fit — ${MAX_IMAGES} photos max.`);
     renderStaged();
@@ -144,13 +189,31 @@
     btn.disabled = true;
     btn.textContent = 'Sending…';
 
+    // The stored type must match what shrink() actually produced, not the
+    // original file's type, or the server will reject the data URL.
+    const images = staged.map((s) => {
+      const m = /^data:([^;,]+);/.exec(s.dataUrl);
+      return {
+        name: s.file.name,
+        type: m ? m[1] : s.file.type,
+        view: s.view,
+        dataUrl: s.dataUrl,
+      };
+    });
+
+    const total = images.reduce((n, i) => n + dataUrlBytes(i.dataUrl), 0);
+    if (total > 5 * 1024 * 1024) {
+      btn.disabled = false;
+      btn.textContent = 'Send for processing';
+      return toast('Those photos are still too large together — try fewer, or smaller ones.');
+    }
+
     fetch('/api/submit', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        user,
         note: $('cb-note') ? $('cb-note').value : '',
-        images: staged.map((s) => ({ name: s.file.name, type: s.file.type, view: s.view, dataUrl: s.dataUrl })),
+        images,
       }),
     })
       .then(async (r) => {

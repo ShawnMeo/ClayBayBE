@@ -17,8 +17,8 @@ const ROOT = __dirname;
 const UPLOADS = path.join(ROOT, 'uploads');
 const TRADES = path.join(ROOT, 'trades.json');
 const MAX_IMAGES = 6;
-const MAX_BYTES = 12 * 1024 * 1024; // per image
-const MAX_BODY = 100 * 1024 * 1024;
+const MAX_BYTES = 2 * 1024 * 1024; // per image, after client-side downscaling
+const MAX_BODY = 8 * 1024 * 1024; // matches the serverless request cap
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',

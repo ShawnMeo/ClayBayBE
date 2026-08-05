@@ -18,7 +18,7 @@ const START_COINS = 10000;
 const MODEL_PRICE = 200;
 const SESSION_DAYS = 30;
 const MAX_IMAGES = 6;
-const MAX_BYTES = 12 * 1024 * 1024;
+const MAX_BYTES = 2 * 1024 * 1024; // after client-side downscaling
 
 const meta = () => getStore('claybay');
 const files = () => getStore('claybay-files');
