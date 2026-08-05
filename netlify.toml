@@ -1,0 +1,19 @@
+[build]
+  publish = "."
+  command = "node build-manifest.js"
+
+[functions]
+  node_bundler = "esbuild"
+  directory = "netlify/functions"
+
+# Every /api/* call goes to the single api function.
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/api/:splat"
+  status = 200
+
+# Uploaded models/photos are served from Blobs, not the repo.
+[[redirects]]
+  from = "/uploads/*"
+  to = "/.netlify/functions/api/blob/:splat"
+  status = 200

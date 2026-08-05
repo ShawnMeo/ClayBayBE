@@ -1,0 +1,64 @@
+{
+  "models": [
+    {
+      "file": "0cbfec13-55bb-4193-bf2a-ca25f2d8f06d.glb",
+      "name": "Toadstool Lantern",
+      "size": 6750176,
+      "thumb": "thumbs/0cbfec13-55bb-4193-bf2a-ca25f2d8f06d.png"
+    },
+    {
+      "file": "3ae2b102-9a22-4ec9-94e5-dca7bc3dbfd9.glb",
+      "name": "Pierced Bowl & Saucer",
+      "size": 6852028,
+      "thumb": "thumbs/3ae2b102-9a22-4ec9-94e5-dca7bc3dbfd9.png"
+    },
+    {
+      "file": "6ba19fe3-005f-4e8c-ace5-5088f61f0119.glb",
+      "name": "Hanging Monkey",
+      "size": 5756252,
+      "thumb": "thumbs/6ba19fe3-005f-4e8c-ace5-5088f61f0119.png"
+    },
+    {
+      "file": "521f4d2e-c044-4563-bbc0-43dcb7e9ab17.glb",
+      "name": "Scaled Spire",
+      "size": 4897104,
+      "thumb": "thumbs/521f4d2e-c044-4563-bbc0-43dcb7e9ab17.png"
+    },
+    {
+      "file": "13676a13-6e25-4ae5-90c3-5bb4d8020d7f.glb",
+      "name": "Gourd Rattle",
+      "size": 6605384,
+      "thumb": "thumbs/13676a13-6e25-4ae5-90c3-5bb4d8020d7f.png"
+    },
+    {
+      "file": "aac0cc75-28da-425f-a20a-24be3da07c28.glb",
+      "name": "Shaggy Beast",
+      "size": 6810708,
+      "thumb": "thumbs/aac0cc75-28da-425f-a20a-24be3da07c28.png"
+    },
+    {
+      "file": "dabbb33c-0033-4e52-8f1a-2be31746587a.glb",
+      "name": "Long-Necked Bird",
+      "size": 6932972,
+      "thumb": "thumbs/dabbb33c-0033-4e52-8f1a-2be31746587a.png"
+    },
+    {
+      "file": "fd17253f-d382-4143-9059-abec087f84b0.glb",
+      "name": "Hanging Birdhouse",
+      "size": 6714320,
+      "thumb": "thumbs/fd17253f-d382-4143-9059-abec087f84b0.png"
+    },
+    {
+      "file": "sdfsff.glb",
+      "name": "Long-Necked Bird (alt)",
+      "size": 6932708,
+      "thumb": "thumbs/sdfsff.png"
+    },
+    {
+      "file": "Turtle.glb",
+      "name": "Lattice Turtle",
+      "size": 1662472,
+      "thumb": "thumbs/Turtle.png"
+    }
+  ]
+}

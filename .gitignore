@@ -1,0 +1,9 @@
+uploads/
+node_modules/
+trades.json
+accounts.json
+sold.json
+.netlify/
+desktop.ini
+Thumbs.db
+.DS_Store

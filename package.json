@@ -1,0 +1,14 @@
+{
+  "name": "claybay",
+  "private": true,
+  "version": "1.0.0",
+  "description": "ClayBay — a 3D pottery shelf, shop and trading post.",
+  "scripts": {
+    "start": "node server.js",
+    "manifest": "node build-manifest.js",
+    "thumbs": "node build-thumbs.js"
+  },
+  "dependencies": {
+    "@netlify/blobs": "^8.1.0"
+  }
+}
