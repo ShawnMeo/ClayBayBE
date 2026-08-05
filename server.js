@@ -72,6 +72,10 @@ const ACCOUNTS = path.join(ROOT, 'accounts.json');
 const START_COINS = 10000;
 const MODEL_PRICE = 200;
 const SESSION_DAYS = 30;
+// Comma-separated usernames with admin rights (env: CLAYBAY_ADMINS).
+const ADMINS = String(process.env.CLAYBAY_ADMINS || '')
+  .split(',').map((x) => x.trim().toLowerCase()).filter(Boolean);
+const isAdmin = (u) => !!u && ADMINS.includes(u);
 
 const loadAccounts = () => {
   const d = readJson(ACCOUNTS, {});
@@ -189,7 +193,7 @@ function me(req, res) {
   if (!user) return json(res, 200, { user: null });
   const db = loadAccounts();
   const acct = db.users[user];
-  json(res, 200, { user, coins: acct ? acct.coins : 0, price: MODEL_PRICE });
+  json(res, 200, { user, coins: acct ? acct.coins : 0, price: MODEL_PRICE, admin: isAdmin(user) });
 }
 
 const readBody = (req, limit) =>
@@ -323,6 +327,8 @@ function allPieces() {
         modelBytes: hasModel ? fs.statSync(modelPath).size : 0,
         submitted: meta.submitted || null,
         boughtFromShelf: meta.boughtFromShelf || null,
+        listing: meta.listing || null,
+        listedAt: meta.listedAt || null,
       });
     }
   }
@@ -338,6 +344,16 @@ function setOwner(key, owner) {
   const meta = readJson(file, {});
   meta.owner = owner;
   fs.writeFileSync(file, JSON.stringify(meta, null, 2) + '\n');
+  return true;
+}
+
+function setMeta(key, patch) {
+  const [creator, id] = String(key).split('/');
+  const file = path.join(UPLOADS, safeUser(creator), id, 'meta.json');
+  if (!fs.existsSync(file)) return false;
+  const m = readJson(file, {});
+  Object.assign(m, patch);
+  fs.writeFileSync(file, JSON.stringify(m, null, 2) + '\n');
   return true;
 }
 
@@ -493,11 +509,43 @@ const saveSold = (map) => fs.writeFileSync(SOLD, JSON.stringify({ sold: map }, n
 /* GET /api/shop — shelf models still for sale. */
 function shop(req, res) {
   const manifest = readJson(path.join(ROOT, 'models', 'manifest.json'), { models: [] });
-  const sold = soldMap();
+  const all = allPieces();
+  const sold = soldMap(all);
+  const viewer = currentUser(req);
   const list = (manifest.models || [])
     .filter((m) => !sold[m.file])
     .map((m) => ({ file: m.file, name: m.name, size: m.size, thumb: m.thumb || null }));
-  json(res, 200, { models: list, price: MODEL_PRICE });
+  // Pieces users have put up for sale, hidden from their own owner.
+  const listings = all
+    .filter((p) => p.listing === 'approved' && p.status === 'done' && p.owner !== viewer)
+    .map((p) => ({ piece: p.key, name: p.note || p.id, size: p.modelBytes,
+                   thumbUrl: p.thumb, seller: p.owner, serial: p.serial }));
+  json(res, 200, { models: list, listings, price: MODEL_PRICE });
+}
+
+/* POST /api/list  { piece, listed } — offer one of your pieces for sale. */
+async function listPiece(req, res) {
+  const user = requireUser(req, res);
+  if (!user) return;
+  let body;
+  try { body = JSON.parse((await readBody(req, 8 * 1024)).toString('utf8')); }
+  catch { return json(res, 400, { error: 'Bad request body.' }); }
+
+  const rec = allPieces().find((p) => p.key === String(body.piece || ''));
+  if (!rec) return json(res, 404, { error: 'No such piece.' });
+  if (rec.owner !== user) return json(res, 403, { error: "That isn't yours to sell." });
+  if (rec.status !== 'done') return json(res, 400, { error: 'That piece is still being processed.' });
+  if (loadTrades().some((t) => t.status === 'pending' && (t.offer === rec.key || t.want === rec.key)))
+    return json(res, 409, { error: 'That piece is tied up in a trade.' });
+
+  if (body.listed === false) {
+    setMeta(rec.key, { listing: null, listedAt: null });
+    return json(res, 200, { ok: true, listing: null });
+  }
+  if (rec.listing === 'approved') return json(res, 409, { error: 'That piece is already for sale.' });
+  if (rec.listing === 'pending') return json(res, 409, { error: 'That piece is already awaiting review.' });
+  setMeta(rec.key, { listing: 'pending', listedAt: new Date().toISOString() });
+  json(res, 200, { ok: true, listing: 'pending' });
 }
 
 /* POST /api/buy  { file } — buy a shelf model with Coins. */
@@ -510,6 +558,26 @@ async function buy(req, res) {
     body = JSON.parse((await readBody(req, 8 * 1024)).toString('utf8'));
   } catch {
     return json(res, 400, { error: 'Bad request body.' });
+  }
+
+  /* Buying another user's listing: ownership moves, price goes to the seller. */
+  if (body.piece) {
+    const rec = allPieces().find((p) => p.key === String(body.piece));
+    if (!rec) return json(res, 404, { error: 'No such piece.' });
+    if (rec.listing !== 'approved') return json(res, 409, { error: 'That piece is no longer for sale.' });
+    if (rec.owner === user) return json(res, 400, { error: "You already own that one." });
+    const db = loadAccounts();
+    const buyer = db.users[user];
+    const seller = db.users[rec.owner];
+    if (!buyer) return json(res, 401, { error: 'Please sign in again.' });
+    if (buyer.coins < MODEL_PRICE)
+      return json(res, 402, { error: `Not enough Coins — that costs ${MODEL_PRICE}.` });
+    buyer.coins -= MODEL_PRICE;
+    if (seller) seller.coins += MODEL_PRICE;
+    saveAccounts(db);
+    const from = rec.owner;
+    setMeta(rec.key, { owner: user, listing: null });
+    return json(res, 200, { ok: true, coins: buyer.coins, name: rec.note || rec.id, from });
   }
 
   const file = path.basename(String(body.file || '')); // basename: no path escapes
@@ -561,6 +629,40 @@ async function buy(req, res) {
 
   console.log(`[buy] ${user} bought ${file} for ${MODEL_PRICE}`);
   json(res, 200, { ok: true, coins: acct.coins, name: entry.name || file });
+}
+
+/* GET /api/admin — everything awaiting review. */
+function admin(req, res) {
+  const user = currentUser(req);
+  if (!isAdmin(user)) return json(res, 403, { error: 'Not an admin.' });
+  const all = allPieces();
+  const db = loadAccounts();
+  json(res, 200, {
+    admin: user,
+    pendingListings: all.filter((p) => p.listing === 'pending'),
+    pendingUploads: all.filter((p) => p.status === 'pending'),
+    live: all.filter((p) => p.listing === 'approved'),
+    users: Object.entries(db.users || {}).map(([name, a]) => ({ name, coins: a.coins, created: a.created })),
+  });
+}
+
+/* POST /api/admin/listing  { piece, action: approve|reject|remove } */
+async function adminListing(req, res) {
+  const user = currentUser(req);
+  if (!isAdmin(user)) return json(res, 403, { error: 'Not an admin.' });
+  let body;
+  try { body = JSON.parse((await readBody(req, 8 * 1024)).toString('utf8')); }
+  catch { return json(res, 400, { error: 'Bad request body.' }); }
+  const rec = allPieces().find((p) => p.key === String(body.piece || ''));
+  if (!rec) return json(res, 404, { error: 'No such piece.' });
+  const action = String(body.action || '');
+  const patch = { reviewedAt: new Date().toISOString(), reviewedBy: user };
+  if (action === 'approve') patch.listing = 'approved';
+  else if (action === 'reject') { patch.listing = 'rejected'; patch.listingNote = String(body.note || '').slice(0,200); }
+  else if (action === 'remove') patch.listing = null;
+  else return json(res, 400, { error: 'Unknown action.' });
+  setMeta(rec.key, patch);
+  json(res, 200, { ok: true, listing: patch.listing });
 }
 
 /* GET /api/users — everyone with at least one finished piece, for the picker. */
@@ -624,6 +726,9 @@ http
     if (url.pathname === '/api/me' && req.method === 'GET') return me(req, res);
     if (url.pathname === '/api/shop' && req.method === 'GET') return shop(req, res);
     if (url.pathname === '/api/buy' && req.method === 'POST') return buy(req, res).catch(fail);
+    if (url.pathname === '/api/list' && req.method === 'POST') return listPiece(req, res).catch(fail);
+    if (url.pathname === '/api/admin' && req.method === 'GET') return admin(req, res);
+    if (url.pathname === '/api/admin/listing' && req.method === 'POST') return adminListing(req, res).catch(fail);
     if (url.pathname === '/api/submit' && req.method === 'POST') return submit(req, res).catch(fail);
     if (url.pathname === '/api/projects' && req.method === 'GET') return projects(req, res, url);
     if (url.pathname === '/api/pieces' && req.method === 'GET') return pieces(req, res, url);

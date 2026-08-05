@@ -17,6 +17,10 @@ import crypto from 'node:crypto';
 const START_COINS = 10000;
 const MODEL_PRICE = 200;
 const SESSION_DAYS = 30;
+// Comma-separated usernames with admin rights, set as a Netlify env var.
+const ADMINS = String(process.env.CLAYBAY_ADMINS || '')
+  .split(',').map((s) => s.trim().toLowerCase()).filter(Boolean);
+const isAdmin = (u) => !!u && ADMINS.includes(u);
 const MAX_IMAGES = 6;
 const MAX_BYTES = 2 * 1024 * 1024; // after client-side downscaling
 
@@ -192,23 +196,96 @@ export default async (req, context) => {
       const user = await currentUser(req);
       if (!user) return json(200, { user: null });
       const db = await getJson('accounts', { users: {}, sessions: {} });
-      return json(200, { user, coins: db.users[user]?.coins ?? 0, price: MODEL_PRICE });
+      return json(200, { user, coins: db.users[user]?.coins ?? 0, price: MODEL_PRICE, admin: isAdmin(user) });
     }
 
     /* ---- shop ---- */
     if (route === 'shop' && method === 'GET') {
       const manifest = await loadManifest(url);
-      const sold = await soldMap();
+      const all = await allPieces();
+      const sold = await soldMap(all);
+      const viewer = await currentUser(req);
+      // House stock (models/) plus pieces users have listed for sale. A
+      // listing is a piece with listed:true, shown to everyone but its owner.
+      const listings = all
+        .filter((p) => p.listing === 'approved' && p.status === 'done' && p.owner !== viewer)
+        .map((p) => ({
+          piece: p.key,
+          name: p.note || p.id,
+          size: p.modelBytes,
+          thumbUrl: p.thumb,
+          seller: p.owner,
+          serial: p.serial,
+        }));
       return json(200, {
         models: (manifest.models || []).filter((m) => !sold[m.file]),
+        listings,
         price: MODEL_PRICE,
       });
+    }
+
+    /* POST /api/list  { piece, listed } — put one of your pieces up for sale
+       (or take it back down). */
+    if (route === 'list' && method === 'POST') {
+      const user = await currentUser(req);
+      if (!user) return json(401, { error: 'Please sign in again.' });
+      const body = await req.json().catch(() => ({}));
+      const rec = await meta().get(pieceKey(String(body.piece || '')), { type: 'json' });
+      if (!rec) return json(404, { error: 'No such piece.' });
+      if (rec.owner !== user) return json(403, { error: "That isn't yours to sell." });
+      if (rec.status !== 'done') return json(400, { error: 'That piece is still being processed.' });
+
+      // A piece in a pending trade cannot also be on sale.
+      const { trades } = await getJson('trades', { trades: [] });
+      if (trades.some((t) => t.status === 'pending' && (t.offer === rec.key || t.want === rec.key)))
+        return json(409, { error: "That piece is tied up in a trade." });
+
+      if (body.listed === false) {
+        // Withdrawing works at any stage.
+        rec.listing = null;
+        rec.listedAt = null;
+        await putJson(pieceKey(rec.key), rec);
+        return json(200, { ok: true, listing: null });
+      }
+      if (rec.listing === 'approved') return json(409, { error: 'That piece is already for sale.' });
+      if (rec.listing === 'pending') return json(409, { error: 'That piece is already awaiting review.' });
+      rec.listing = 'pending'; // an admin has to approve it before it goes live
+      rec.listedAt = new Date().toISOString();
+      await putJson(pieceKey(rec.key), rec);
+      return json(200, { ok: true, listing: 'pending' });
     }
 
     if (route === 'buy' && method === 'POST') {
       const user = await currentUser(req);
       if (!user) return json(401, { error: 'Please sign in again.' });
       const body = await req.json().catch(() => ({}));
+
+      /* Buying another user's listing: ownership moves and the price goes to
+         the seller. No files are copied — only the owner field changes. */
+      if (body.piece) {
+        const rec = await meta().get(pieceKey(String(body.piece)), { type: 'json' });
+        if (!rec) return json(404, { error: 'No such piece.' });
+        if (rec.listing !== 'approved') return json(409, { error: 'That piece is no longer for sale.' });
+        if (rec.owner === user) return json(400, { error: "You already own that one." });
+
+        const db = await getJson('accounts', { users: {}, sessions: {} });
+        const buyer = db.users[user];
+        const seller = db.users[rec.owner];
+        if (!buyer) return json(401, { error: 'Please sign in again.' });
+        if (buyer.coins < MODEL_PRICE)
+          return json(402, { error: `Not enough Coins — that costs ${MODEL_PRICE}.` });
+
+        buyer.coins -= MODEL_PRICE;
+        if (seller) seller.coins += MODEL_PRICE;
+        await putJson('accounts', db);
+
+        const sellerName = rec.owner;
+        rec.owner = user;
+        rec.listing = null;
+        await putJson(pieceKey(rec.key), rec);
+        return json(200, { ok: true, coins: buyer.coins, name: rec.note || rec.id, from: sellerName });
+      }
+
       const file = String(body.file || '').split('/').pop();
       const manifest = await loadManifest(url);
       const entry = (manifest.models || []).find((m) => m.file === file);
@@ -254,6 +331,38 @@ export default async (req, context) => {
       // No `sold` write needed: soldMap() derives it from the piece's
       // boughtFromShelf field, so the record can't drift out of sync.
       return json(200, { ok: true, coins: acct.coins, name: entry.name || file });
+    }
+
+    /* ---- admin ---- */
+    if (route === 'admin' && method === 'GET') {
+      const user = await currentUser(req);
+      if (!isAdmin(user)) return json(403, { error: 'Not an admin.' });
+      const all = await allPieces();
+      const db = await getJson('accounts', { users: {}, sessions: {} });
+      return json(200, {
+        admin: user,
+        pendingListings: all.filter((p) => p.listing === 'pending'),
+        pendingUploads: all.filter((p) => p.status === 'pending'),
+        live: all.filter((p) => p.listing === 'approved'),
+        users: Object.entries(db.users || {}).map(([name, a]) => ({ name, coins: a.coins, created: a.created })),
+      });
+    }
+
+    if (route === 'admin/listing' && method === 'POST') {
+      const user = await currentUser(req);
+      if (!isAdmin(user)) return json(403, { error: 'Not an admin.' });
+      const body = await req.json().catch(() => ({}));
+      const rec = await meta().get(pieceKey(String(body.piece || '')), { type: 'json' });
+      if (!rec) return json(404, { error: 'No such piece.' });
+      const action = String(body.action || '');
+      if (action === 'approve') rec.listing = 'approved';
+      else if (action === 'reject') { rec.listing = 'rejected'; rec.listingNote = String(body.note || '').slice(0, 200); }
+      else if (action === 'remove') rec.listing = null;
+      else return json(400, { error: 'Unknown action.' });
+      rec.reviewedAt = new Date().toISOString();
+      rec.reviewedBy = user;
+      await putJson(pieceKey(rec.key), rec);
+      return json(200, { ok: true, listing: rec.listing });
     }
 
     /* ---- uploads ---- */

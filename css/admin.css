@@ -1,0 +1,69 @@
+/* Admin dashboard. Reuses the site's tokens and header; the body scrolls
+   normally rather than being a fixed 3D stage. */
+.admin-body{height:auto; min-height:100dvh; overflow:auto; display:block}
+.admin-body header{position:sticky; top:0; z-index:5; background:var(--paper)}
+.ad-link{
+  font-family:var(--sans); font-size:10px; font-weight:600;
+  letter-spacing:.14em; text-transform:uppercase;
+  color:var(--ink-faint); text-decoration:none;
+}
+.ad-link:hover{color:var(--glaze)}
+
+.ad-main{max-width:900px; margin:0 auto; padding:26px 22px 60px}
+.ad-gate{padding:40px 0}
+.ad-note{
+  font-family:var(--sans); font-size:11.5px; line-height:1.6;
+  color:var(--ink-soft); margin:0 0 14px; max-width:62ch;
+}
+.ad-empty{
+  font-family:var(--sans); font-size:11.5px; color:var(--ink-faint);
+  margin:0; padding:14px 2px;
+}
+
+.ad-section{margin-bottom:36px}
+.ad-section h2{
+  margin:0 0 4px; font-size:22px; font-weight:600;
+  display:flex; align-items:center; gap:10px;
+}
+.ad-count{
+  font-family:var(--sans); font-size:10px; font-weight:700;
+  letter-spacing:.1em; color:var(--on-glaze); background:var(--glaze);
+  border-radius:999px; padding:2px 8px; font-variant-numeric:tabular-nums;
+}
+
+.ad-rows{border-top:1px solid var(--line)}
+.ad-row{
+  display:grid; grid-template-columns:44px 1fr auto; gap:14px; align-items:center;
+  padding:11px 2px; border-bottom:1px solid var(--line);
+}
+.ad-thumb{
+  width:44px; height:44px; border-radius:8px; overflow:hidden;
+  background:var(--paper-2); border:1px solid var(--line); display:block;
+}
+.ad-thumb img{width:100%; height:100%; object-fit:cover; display:block}
+.ad-info{display:flex; flex-direction:column; gap:2px; min-width:0}
+.ad-title{font-size:16px; line-height:1.2}
+.ad-meta{
+  font-family:var(--sans); font-size:10px; letter-spacing:.06em;
+  color:var(--ink-faint); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.ad-meta code{font-size:9.5px; background:var(--paper-2); padding:1px 5px; border-radius:4px}
+.ad-actions{display:flex; gap:7px}
+.ad-btn{
+  font-family:var(--sans); font-size:10.5px; font-weight:600;
+  letter-spacing:.06em; text-transform:uppercase;
+  border:1px solid var(--line-strong); border-radius:8px;
+  padding:7px 12px; color:var(--ink-soft); background:var(--card-solid);
+}
+.ad-btn:hover:not(:disabled){border-color:var(--ink-soft); color:var(--ink)}
+.ad-btn.ok{background:var(--glaze); border-color:var(--glaze); color:var(--on-glaze)}
+.ad-btn.ok:hover:not(:disabled){filter:brightness(1.08)}
+.ad-btn:disabled{opacity:.5; cursor:default}
+
+@media (max-width:620px){
+  .ad-main{padding:18px 14px 40px}
+  .ad-row{grid-template-columns:38px 1fr; row-gap:8px}
+  .ad-actions{grid-column:1/-1}
+  .ad-btn{flex:1; padding:9px 10px}
+  .ad-section h2{font-size:19px}
+}

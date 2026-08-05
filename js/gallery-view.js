@@ -25,7 +25,7 @@
     fetch('/api/buy', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ file: meta.file }),
+      body: JSON.stringify(meta.piece ? { piece: meta.piece } : { file: meta.file }),
     })
       .then(async (r) => {
         const d = await r.json().catch(() => ({}));
@@ -38,14 +38,47 @@
         toast(`Bought ${label} — it's in your collection.`);
         // Take it off the shelf in place and stay put, so you can keep
         // browsing and buy more without being pulled to another view.
-        if (window.__SHELF_REMOVE__) window.__SHELF_REMOVE__(meta.file);
+        if (meta.file && window.__SHELF_REMOVE__) window.__SHELF_REMOVE__(meta.file);
         owned = []; // stale until next visit to the collection
-        build();
+        loadListings().then(build);
       })
       .catch((e) => {
         toast(e.message);
         btn.disabled = false;
         btn.textContent = `Buy · ${PRICE} Coins`;
+      });
+  }
+
+  /* Offer one of your pieces to the store, or withdraw it. Listings are
+     reviewed by an admin before they go on sale, so this only ever moves a
+     piece to "pending" — it never puts it straight on the shelf. */
+  function listPiece(p, btn) {
+    const withdraw = p.listing === 'pending' || p.listing === 'approved';
+    const label = p.note || p.id;
+    btn.disabled = true;
+    btn.textContent = withdraw ? 'Withdrawing…' : 'Sending…';
+    fetch('/api/list', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ piece: p.key, listed: !withdraw }),
+    })
+      .then(async (r) => {
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(d.error || `Failed (${r.status})`);
+        return d;
+      })
+      .then((d) => {
+        toast(
+          d.listing === 'pending'
+            ? `${label} sent for review — it goes on sale once approved.`
+            : `${label} withdrawn from the store.`
+        );
+        return loadOwned().then(build);
+      })
+      .catch((e) => {
+        toast(e.message);
+        btn.disabled = false;
+        build();
       });
   }
 
@@ -85,12 +118,14 @@
     if (open) {
       build();
       if (view === 'owned') loadOwned().then(build);
+      else loadListings().then(build);
     }
   };
 
   const cycle = () => setMode(VIEWS[(VIEWS.indexOf(view) + 1) % VIEWS.length]);
 
   let owned = [];
+  let listings = []; // pieces other collectors have up for sale
 
   /* A gallery card: the image is the piece, the caption sits quietly beneath,
      and any action (Buy) floats over the image on hover. The whole tile can't
@@ -116,12 +151,43 @@
   const buildShelf = (grid) => {
     const shelf = window.__SHELF__ || [];
     const count = $('gv-count');
-    if (count) count.textContent = shelf.length ? `${shelf.length} for sale` : 'Every piece has been claimed';
+    const total = shelf.length + listings.length;
+    if (count) count.textContent = total ? `${total} for sale` : 'Every piece has been claimed';
 
-    if (!shelf.length) {
+    if (!total) {
       grid.innerHTML = '<p class="gv-empty">Nothing left on the shelf — every piece has an owner now.</p>';
       return;
     }
+
+    // Pieces other collectors have listed, shown alongside the house stock.
+    listings.forEach((l) => {
+      const tile = card({
+        thumb: l.thumbUrl || null,
+        name: l.name,
+        sub: fmtSize(l.size),
+        badge: l.serial,
+        onOpen: () => {
+          setMode('viewer');
+          window.__OFF_SHELF__ = true;
+          fetch('api/blob/' + l.piece + '/model.glb')
+            .then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(String(r.status)))))
+            .then((buf) => window.__LOAD_BUFFER__(buf, l.name, l.size || 0, null))
+            .catch(() => toast(`Could not load "${l.name}".`));
+        },
+      });
+      const from = document.createElement('span');
+      from.className = 'gv-tag';
+      from.textContent = 'From ' + l.seller;
+      tile.querySelector('.gv-thumb').appendChild(from);
+
+      const buy = document.createElement('button');
+      buy.className = 'gv-buy';
+      buy.type = 'button';
+      buy.innerHTML = `Buy <span class="gv-price">${PRICE}</span>`;
+      buy.addEventListener('click', () => purchase({ piece: l.piece, name: l.name }, buy));
+      tile.querySelector('.gv-actions').appendChild(buy);
+      grid.appendChild(tile);
+    });
 
     shelf.forEach(({ meta, index }) => {
       const tile = card({
@@ -186,6 +252,27 @@
       tag.className = 'gv-tag';
       tag.textContent = p.traded ? 'Traded' : p.boughtFromShelf ? 'Bought' : 'Yours';
       tile.querySelector('.gv-thumb').appendChild(tag);
+
+      // Sell pill, mirroring Buy on the shelf. Listings need approval first.
+      const sell = document.createElement('button');
+      sell.className = 'gv-buy gv-sell';
+      sell.type = 'button';
+      if (p.listing === 'pending') {
+        sell.textContent = 'Awaiting review';
+        sell.classList.add('is-pending');
+      } else if (p.listing === 'approved') {
+        sell.textContent = 'For sale — withdraw';
+        sell.classList.add('is-live');
+      } else if (p.listing === 'rejected') {
+        sell.textContent = 'Not approved — retry';
+      } else {
+        sell.innerHTML = `Add to store <span class="gv-price">${PRICE}</span>`;
+      }
+      sell.addEventListener('click', () => listPiece(p, sell));
+      tile.querySelector('.gv-actions').appendChild(sell);
+
+      // A listed piece reads differently at a glance.
+      if (p.listing) tile.classList.add('is-listed');
       grid.appendChild(tile);
     });
   };
@@ -237,6 +324,13 @@
     if (view === 'owned') buildOwned(grid);
     else buildShelf(grid);
   };
+
+  /* Approved listings from other collectors, shown on the shelf. */
+  const loadListings = () =>
+    fetch('/api/shop', { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
+      .then((d) => { listings = d.listings || []; })
+      .catch(() => { listings = []; });
 
   /* Owned pieces come from the same endpoint the rail gallery uses. */
   const loadOwned = () => {

@@ -640,3 +640,12 @@ body.gallery-open .quote{display:none !important}
 .gv-studio-card .cb-add{margin:0}
 /* It only belongs in the grid on phones. */
 @media (min-width: 621px){ #gv-studio{display:none} }
+
+/* Sell pill on collection cards — same shape as Buy, quieter colouring. */
+.gv-sell{background:rgba(255,255,255,.95)}
+.gv-sell.is-pending{background:rgba(180,100,63,.94); color:#fff}
+.gv-sell.is-live{background:var(--glaze); color:var(--on-glaze)}
+.gv-sell.is-pending .gv-price,
+.gv-sell.is-live .gv-price{color:inherit; border-left-color:rgba(255,255,255,.4)}
+/* A listed piece stays marked even when not hovered. */
+.gv-card.is-listed .gv-actions{opacity:1; transform:none}
