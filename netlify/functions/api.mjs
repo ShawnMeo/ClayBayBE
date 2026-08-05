@@ -86,12 +86,42 @@ async function allPieces() {
   const out = [];
   for (const b of blobs) {
     const p = await meta().get(b.key, { type: 'json' });
-    if (p) out.push(p);
+    if (p) out.push({ ...p, serial: serialFor(p.key) });
   }
   return out;
 }
 
 const pieceKey = (key) => `piece:${key}`;
+
+/* A short, stable, human-readable serial for a piece — "CB-7F3K2Q".
+   Derived from the storage key so it never changes, survives trades, and is
+   the same every time it's computed (no need to store it separately).
+   Ambiguous characters (0/O, 1/I) are excluded so it can be read aloud. */
+const ALPHABET = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
+function serialFor(key) {
+  const h = crypto.createHash('sha256').update(String(key)).digest();
+  let out = '';
+  for (let i = 0; i < 6; i++) out += ALPHABET[h[i] % ALPHABET.length];
+  return `CB-${out}`;
+}
+
+/* Which shelf files are already owned by somebody.
+
+   This is derived from the pieces themselves rather than kept in a separate
+   `sold` ledger: a ledger can drift from reality (deleting it silently put
+   bought pieces back on the shelf), whereas a piece recording where it came
+   from is the single source of truth. The old `sold` blob is still merged in
+   so nothing bought before this change is lost. */
+async function soldMap(pieces) {
+  const all = pieces || (await allPieces());
+  const map = {};
+  for (const p of all) {
+    if (p.boughtFromShelf) map[p.boughtFromShelf] = { user: p.owner, at: p.submitted, piece: p.key };
+  }
+  const legacy = await getJson('sold', { sold: {} });
+  for (const [file, rec] of Object.entries(legacy.sold || {})) if (!map[file]) map[file] = rec;
+  return map;
+}
 
 /* ---- handler ---- */
 export default async (req, context) => {
@@ -168,7 +198,7 @@ export default async (req, context) => {
     /* ---- shop ---- */
     if (route === 'shop' && method === 'GET') {
       const manifest = await loadManifest(url);
-      const { sold } = await getJson('sold', { sold: {} });
+      const sold = await soldMap();
       return json(200, {
         models: (manifest.models || []).filter((m) => !sold[m.file]),
         price: MODEL_PRICE,
@@ -184,8 +214,8 @@ export default async (req, context) => {
       const entry = (manifest.models || []).find((m) => m.file === file);
       if (!entry) return json(404, { error: 'No such piece.' });
 
-      const soldDoc = await getJson('sold', { sold: {} });
-      if (soldDoc.sold[file]) return json(409, { error: 'Someone already bought that one.' });
+      const sold = await soldMap();
+      if (sold[file]) return json(409, { error: 'Someone already bought that one.' });
 
       const db = await getJson('accounts', { users: {}, sessions: {} });
       const acct = db.users[user];
@@ -221,8 +251,8 @@ export default async (req, context) => {
 
       acct.coins -= MODEL_PRICE;
       await putJson('accounts', db);
-      soldDoc.sold[file] = { user, at: new Date().toISOString(), price: MODEL_PRICE };
-      await putJson('sold', soldDoc);
+      // No `sold` write needed: soldMap() derives it from the piece's
+      // boughtFromShelf field, so the record can't drift out of sync.
       return json(200, { ok: true, coins: acct.coins, name: entry.name || file });
     }
 

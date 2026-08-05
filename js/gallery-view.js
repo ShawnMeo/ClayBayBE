@@ -35,9 +35,11 @@
       .then((d) => {
         if (window.__SET_COINS__) window.__SET_COINS__(d.coins);
         if (window.__REFRESH_GALLERY__) window.__REFRESH_GALLERY__();
-        toast(`Bought ${label} — it's yours now.`);
-        // It has left the shelf, so reload the page's shelf state.
-        setTimeout(() => window.location.reload(), 900);
+        toast(`Bought ${label} — it's in your collection.`);
+        // Drop it from the shelf list in place and show the collection, rather
+        // than reloading the whole page.
+        if (window.__SHELF_REMOVE__) window.__SHELF_REMOVE__(meta.file);
+        setTab('owned');
       })
       .catch((e) => {
         toast(e.message);
@@ -60,39 +62,53 @@
     $('ic-cube').style.display = on ? '' : 'none';
   };
 
-  const build = () => {
-    const grid = $('gv-grid');
-    const shelf = window.__SHELF__ || [];
-    if (!grid) return;
+  /* Two tabs: the shelf (things for sale) and your own collection (things you
+     own). They are different lists with different actions, so they get
+     separate views rather than one merged grid. */
+  let tab = 'shelf';
+  let owned = [];
 
-    grid.innerHTML = '';
+  const card = ({ thumb, name, sub, badge, onOpen }) => {
+    const b = document.createElement('button');
+    b.className = 'gv-card';
+    b.type = 'button';
+    b.innerHTML = `
+      <span class="gv-thumb">${
+        thumb ? `<img src="${esc(thumb)}" alt="" loading="lazy">` : '<span class="gv-noimg" aria-hidden="true">◈</span>'
+      }</span>
+      <span class="gv-meta">
+        <span class="gv-name">${esc(name)}</span>
+        <span class="gv-sub">${esc(sub || '')}</span>
+        ${badge ? `<span class="gv-serial">${esc(badge)}</span>` : ''}
+      </span>`;
+    if (onOpen) b.addEventListener('click', onOpen);
+    return b;
+  };
+
+  const buildShelf = (grid) => {
+    const shelf = window.__SHELF__ || [];
     const count = $('gv-count');
-    if (count) count.textContent = shelf.length ? `${shelf.length} pieces` : 'No pieces yet';
+    if (count) count.textContent = shelf.length ? `${shelf.length} for sale` : 'Every piece has been claimed';
+
+    if (!shelf.length) {
+      grid.innerHTML = '<p class="gv-empty">Nothing left on the shelf — every piece has an owner now.</p>';
+      return;
+    }
 
     shelf.forEach(({ meta, index }) => {
-      const card = document.createElement('button');
-      card.className = 'gv-card';
-      card.type = 'button';
-      const thumb = meta.thumb ? 'models/' + meta.thumb : null;
-      card.innerHTML = `
-        <span class="gv-thumb">${
-          thumb
-            ? `<img src="${esc(thumb)}" alt="" loading="lazy">`
-            : '<span class="gv-noimg" aria-hidden="true">◈</span>'
-        }</span>
-        <span class="gv-meta">
-          <span class="gv-name">${esc(meta.name || meta.file)}</span>
-          <span class="gv-sub">${esc(fmtSize(meta.size))}</span>
-        </span>`;
-      card.addEventListener('click', () => {
-        setMode(false); // back to the viewport, with this piece loaded
-        window.__SHELF_SHOW__(index);
-      });
-
-      // Buying sits outside the card button so it doesn't also open the viewer.
       const row = document.createElement('div');
       row.className = 'gv-item';
-      row.appendChild(card);
+      row.appendChild(
+        card({
+          thumb: meta.thumb ? 'models/' + meta.thumb : null,
+          name: meta.name || meta.file,
+          sub: fmtSize(meta.size),
+          onOpen: () => {
+            setMode(false);
+            window.__SHELF_SHOW__(index);
+          },
+        })
+      );
       const buy = document.createElement('button');
       buy.className = 'gv-buy';
       buy.type = 'button';
@@ -104,12 +120,102 @@
     });
   };
 
+  const buildOwned = (grid) => {
+    const user = window.__CURRENT_USER__ && window.__CURRENT_USER__();
+    const count = $('gv-count');
+
+    if (!user) {
+      if (count) count.textContent = '';
+      grid.innerHTML = '<p class="gv-empty">Sign in to see the pieces you own.</p>';
+      return;
+    }
+    const done = owned.filter((p) => p.status === 'done');
+    if (count) count.textContent = done.length ? `${done.length} owned` : '';
+
+    if (!done.length) {
+      grid.innerHTML =
+        '<p class="gv-empty">You don\'t own anything yet. Buy a piece from the shelf, or send in photos of your own.</p>';
+      return;
+    }
+
+    done.forEach((p) => {
+      const row = document.createElement('div');
+      row.className = 'gv-item';
+      row.appendChild(
+        card({
+          thumb: p.thumb || null,
+          name: p.note || p.id,
+          sub: fmtSize(p.modelBytes),
+          badge: p.serial,
+          onOpen: () => {
+            setMode(false);
+            window.__OFF_SHELF__ = true;
+            fetch(p.model)
+              .then((r) => {
+                if (!r.ok) throw new Error(String(r.status));
+                return r.arrayBuffer();
+              })
+              .then((buf) => window.__LOAD_BUFFER__(buf, p.note || p.id, p.modelBytes || 0, null))
+              .catch(() => toast(`Could not load "${p.note || p.id}".`));
+          },
+        })
+      );
+      const foot = document.createElement('div');
+      foot.className = 'gv-owned-foot';
+      foot.textContent = p.traded ? 'Traded in' : p.boughtFromShelf ? 'Bought' : 'Made by you';
+      row.appendChild(foot);
+      grid.appendChild(row);
+    });
+  };
+
+  const build = () => {
+    const grid = $('gv-grid');
+    if (!grid) return;
+    grid.innerHTML = '';
+    const title = $('gv-title');
+    if (title) title.textContent = tab === 'shelf' ? 'The Shelf' : 'My Collection';
+    document.querySelectorAll('.gv-tab').forEach((b) =>
+      b.setAttribute('aria-selected', String(b.dataset.tab === tab))
+    );
+    if (tab === 'shelf') buildShelf(grid);
+    else buildOwned(grid);
+  };
+
+  /* Owned pieces come from the same endpoint the rail gallery uses. */
+  const loadOwned = () => {
+    const user = window.__CURRENT_USER__ && window.__CURRENT_USER__();
+    if (!user) {
+      owned = [];
+      return Promise.resolve();
+    }
+    return fetch(`/api/projects?user=${encodeURIComponent(user)}`, { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
+      .then((d) => {
+        owned = d.projects || [];
+      })
+      .catch(() => {
+        owned = [];
+      });
+  };
+
+  const setTab = (next) => {
+    tab = next;
+    build();
+    if (next === 'owned') loadOwned().then(build);
+  };
+
   const start = () => {
     const btn = $('mode-toggle');
     if (btn) btn.addEventListener('click', () => setMode(!open));
-    // Esc leaves gallery mode.
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape' && open) setMode(false);
+    });
+    document.querySelectorAll('.gv-tab').forEach((b) =>
+      b.addEventListener('click', () => setTab(b.dataset.tab))
+    );
+    // Signing in or out changes what "My Collection" should show.
+    window.addEventListener('claybay:session', () => {
+      if (tab === 'owned') loadOwned().then(build);
     });
     build();
   };

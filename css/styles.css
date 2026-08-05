@@ -547,3 +547,32 @@ body.gallery-open .quote{display:none !important}
   .gv-grid{grid-template-columns:1fr 1fr; gap:8px}
   .brand .word{font-size:17px}
 }
+
+/* ---------- gallery tabs: the shelf vs your own collection ---------- */
+/* Title on the left, tabs on the right, count tucked under the title. */
+.gv-head-top{display:block}
+.gv-head{display:flex; align-items:flex-end; justify-content:space-between; gap:16px; flex-wrap:wrap}
+.gv-head #gv-count{margin-top:2px}
+.gv-tabs{display:flex; gap:4px; border-bottom:0}
+.gv-tab{
+  font-family:var(--sans); font-size:10.5px; font-weight:600;
+  letter-spacing:.12em; text-transform:uppercase; color:var(--ink-faint);
+  padding:8px 12px; border-bottom:2px solid transparent; margin-bottom:-1px;
+}
+.gv-tab:hover{color:var(--ink-soft)}
+.gv-tab[aria-selected="true"]{color:var(--glaze); border-bottom-color:var(--glaze)}
+.gv-empty{
+  grid-column:1/-1; font-family:var(--sans); font-size:12px; line-height:1.6;
+  color:var(--ink-faint); margin:0; padding:22px 2px;
+}
+/* Unique serial, e.g. CB-7F3K2Q */
+.gv-serial{
+  font-family:var(--sans); font-size:8.5px; letter-spacing:.14em;
+  color:var(--ink-faint); margin-top:3px; font-variant-numeric:tabular-nums;
+}
+.gv-owned-foot{
+  font-family:var(--sans); font-size:9.5px; font-weight:600;
+  letter-spacing:.1em; text-transform:uppercase; color:var(--ink-faint);
+  border:1px solid var(--line); border-top:0; border-radius:0 0 12px 12px;
+  padding:9px 12px; text-align:center; background:var(--paper-2);
+}

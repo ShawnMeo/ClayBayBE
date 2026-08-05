@@ -103,6 +103,22 @@
         // Publish for gallery mode: pair each manifest record with its shelf entry.
         window.__SHELF__ = usable.map((m, i) => ({ meta: m, entry: entries[i], index: i }));
         window.__SHELF_SHOW__ = show;
+
+        // Called after a purchase: take the piece off the shelf in place, so
+        // the rail and the grid both update without a page reload.
+        window.__SHELF_REMOVE__ = (file) => {
+          const i = (window.__SHELF__ || []).findIndex((s) => s.meta.file === file);
+          if (i < 0) return;
+          const gone = window.__SHELF__[i];
+          if (gone.entry && gone.entry.btn && gone.entry.btn.parentElement)
+            gone.entry.btn.parentElement.remove();
+          entries.splice(i, 1);
+          window.__SHELF__.splice(i, 1);
+          // Indices shifted, so renumber what gallery mode hands back to show().
+          window.__SHELF__.forEach((s, n) => (s.index = n));
+          if (current >= entries.length) current = entries.length - 1;
+        };
+
         window.dispatchEvent(new Event('shelf:ready'));
 
         show(0); // open the first piece instead of a built-in one

@@ -105,8 +105,14 @@
   <section id="gallery-view" hidden aria-label="Gallery">
     <div class="gv-inner">
       <header class="gv-head">
-        <h2>The Shelf</h2>
-        <p id="gv-count"></p>
+        <div class="gv-head-top">
+          <h2 id="gv-title">The Shelf</h2>
+          <p id="gv-count"></p>
+        </div>
+        <div class="gv-tabs" role="tablist">
+          <button class="gv-tab" type="button" role="tab" data-tab="shelf" aria-selected="true">The Shelf</button>
+          <button class="gv-tab" type="button" role="tab" data-tab="owned" aria-selected="false">My Collection</button>
+        </div>
       </header>
       <div class="gv-grid" id="gv-grid"></div>
     </div>

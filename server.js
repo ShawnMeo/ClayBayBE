@@ -308,8 +308,10 @@ function allPieces() {
         : 'pending';
       const modelPath = path.join(dir, 'model.glb');
       const hasModel = fs.existsSync(modelPath);
+      const pkey = `${creator.name}/${proj.name}`;
       out.push({
-        key: `${creator.name}/${proj.name}`,
+        key: pkey,
+        serial: serialFor(pkey),
         id: proj.name,
         creator: creator.name,
         owner: meta.owner || creator.name,
@@ -320,6 +322,7 @@ function allPieces() {
         model: hasModel ? `uploads/${creator.name}/${proj.name}/model.glb` : null,
         modelBytes: hasModel ? fs.statSync(modelPath).size : 0,
         submitted: meta.submitted || null,
+        boughtFromShelf: meta.boughtFromShelf || null,
       });
     }
   }
@@ -461,13 +464,36 @@ async function respondTrade(req, res) {
    gallery as a normal piece — so it can then be traded on.
    `sold.json` records which shelf files are gone and who took them. */
 const SOLD = path.join(ROOT, 'sold.json');
+
+/* A short, stable, human-readable serial — "CB-7F3K2Q". Derived from the
+   piece key so it never changes and survives trades. */
+const ALPHABET = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
+function serialFor(key) {
+  const h = crypto.createHash('sha256').update(String(key)).digest();
+  let out = '';
+  for (let i = 0; i < 6; i++) out += ALPHABET[h[i] % ALPHABET.length];
+  return `CB-${out}`;
+}
+
+/* Sold shelf files, derived from the pieces themselves so the record cannot
+   drift out of sync with reality. Legacy sold.json is merged in. */
+function soldMap(pieces) {
+  const all = pieces || allPieces();
+  const map = {};
+  for (const p of all) {
+    if (p.boughtFromShelf) map[p.boughtFromShelf] = { user: p.owner, at: p.submitted, piece: p.key };
+  }
+  const legacy = readJson(SOLD, { sold: {} }).sold || {};
+  for (const [f, r] of Object.entries(legacy)) if (!map[f]) map[f] = r;
+  return map;
+}
 const loadSold = () => readJson(SOLD, { sold: {} }).sold || {};
 const saveSold = (map) => fs.writeFileSync(SOLD, JSON.stringify({ sold: map }, null, 2) + '\n');
 
 /* GET /api/shop — shelf models still for sale. */
 function shop(req, res) {
   const manifest = readJson(path.join(ROOT, 'models', 'manifest.json'), { models: [] });
-  const sold = loadSold();
+  const sold = soldMap();
   const list = (manifest.models || [])
     .filter((m) => !sold[m.file])
     .map((m) => ({ file: m.file, name: m.name, size: m.size, thumb: m.thumb || null }));
@@ -493,7 +519,7 @@ async function buy(req, res) {
   const entry = (manifest.models || []).find((m) => m.file === file);
   if (!entry) return json(res, 404, { error: 'No such piece.' });
 
-  const sold = loadSold();
+  const sold = soldMap();
   if (sold[file]) return json(res, 409, { error: 'Someone already bought that one.' });
 
   const db = loadAccounts();
@@ -531,8 +557,7 @@ async function buy(req, res) {
 
   acct.coins -= MODEL_PRICE;
   saveAccounts(db);
-  sold[file] = { user, at: new Date().toISOString(), price: MODEL_PRICE };
-  saveSold(sold);
+  // No sold.json write: soldMap() derives it from boughtFromShelf.
 
   console.log(`[buy] ${user} bought ${file} for ${MODEL_PRICE}`);
   json(res, 200, { ok: true, coins: acct.coins, name: entry.name || file });
@@ -560,16 +585,7 @@ function projects(req, res, url) {
   const out = allPieces()
     .filter((p) => p.owner === user || (p.status === 'pending' && p.creator === user))
     .map((p) => ({
-      id: p.id,
-      key: p.key,
-      status: p.status,
-      submitted: p.submitted,
-      note: p.note,
-      images: p.images,
-      thumb: p.thumb,
-      model: p.model,
-      modelBytes: p.modelBytes,
-      creator: p.creator,
+      ...p,
       traded: p.creator !== p.owner, // arrived via a trade
     }))
     .sort((a, b) => String(b.id).localeCompare(String(a.id)));
