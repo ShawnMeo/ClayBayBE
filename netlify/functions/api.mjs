@@ -20,8 +20,13 @@ const SESSION_DAYS = 30;
 const MAX_IMAGES = 6;
 const MAX_BYTES = 2 * 1024 * 1024; // after client-side downscaling
 
-const meta = () => getStore('claybay');
-const files = () => getStore('claybay-files');
+// Strong consistency matters here: without it a session written during
+// register/login is not readable on the very next request (~300ms lag), so
+// the user's first action after signing in fails with 401. Same for coins,
+// sold state and trades, where a stale read means a wrong balance or a
+// double-spend.
+const meta = () => getStore({ name: 'claybay', consistency: 'strong' });
+const files = () => getStore('claybay-files'); // binaries never change once written
 
 const EXT_FOR = { 'image/png': '.png', 'image/jpeg': '.jpg', 'image/webp': '.webp' };
 
@@ -92,7 +97,14 @@ const pieceKey = (key) => `piece:${key}`;
 export default async (req, context) => {
   const url = new URL(req.url);
   // Path after /api/ (the redirect strips the prefix into :splat)
-  const route = url.pathname.replace(/^.*\/functions\/api\/?/, '').replace(/^api\/?/, '');
+  // Reached either directly (/.netlify/functions/api/<route>) or via the
+  // /api/* redirect, which leaves the pathname as /api/<route>. Strip
+  // whichever prefix is present and keep the rest verbatim.
+  const route = url.pathname
+    .replace(/^\/\.netlify\/functions\/api/, '')
+    .replace(/^\/api/, '')
+    .replace(/^\/+/, '')
+    .replace(/\/+$/, '');
   const method = req.method;
 
   try {
@@ -202,8 +214,8 @@ export default async (req, context) => {
         note: entry.name || file, status: 'done',
         submitted: new Date().toISOString(),
         images, boughtFromShelf: file,
-        model: `uploads/${key}/model.glb`,
-        thumb: images.length ? `uploads/${key}/01-front.png` : null,
+        model: `api/blob/${key}/model.glb`,
+        thumb: images.length ? `api/blob/${key}/01-front.png` : null,
         modelBytes: src.byteLength,
       });
 
@@ -248,7 +260,7 @@ export default async (req, context) => {
         note: String(payload.note || '').slice(0, 500),
         status: 'pending', submitted: new Date().toISOString(),
         images: written,
-        thumb: `uploads/${key}/${written[0].file}`,
+        thumb: `api/blob/${key}/${written[0].file}`,
         model: null, modelBytes: 0,
       });
       return json(200, { ok: true, id, images: written.length });
