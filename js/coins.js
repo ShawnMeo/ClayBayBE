@@ -92,7 +92,6 @@
     me = { user: who.user, coins: who.coins };
     showBalance();
     $('cn-signin').hidden = !!me.user;
-    $('cn-demo').hidden = !data.demo;
     render(data.bundles || []);
   });
 })();
