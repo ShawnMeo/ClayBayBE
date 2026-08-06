@@ -331,6 +331,58 @@
       });
   }
 
+  /* Pieces published before renders existed still show a reference photo.
+     Fetch each model, render it here, and store the result. */
+  function loadStale() {
+    return api('/api/admin/stale')
+      .then((d) => {
+        const list = d.stale || [];
+        const sec = $('sec-stale');
+        const rows = $('rows-stale');
+        if (!sec || !rows) return;
+        sec.hidden = !list.length;
+        $('c-stale').textContent = list.length;
+        rows.innerHTML = '';
+        for (const p of list) {
+          rows.appendChild(
+            row({ title: p.name, meta: `${esc(p.owner)} · <code>${esc(p.key)}</code>` })
+          );
+        }
+        return list;
+      })
+      .catch(() => []);
+  }
+
+  async function rebuildThumbs(btn) {
+    const list = await loadStale();
+    if (!list || !list.length) return;
+    btn.disabled = true;
+    let done = 0;
+    for (const p of list) {
+      btn.textContent = `Rebuilding ${done + 1} of ${list.length}…`;
+      try {
+        const buf = await fetch('/' + p.model).then((r) => {
+          if (!r.ok) throw new Error(String(r.status));
+          return r.arrayBuffer();
+        });
+        const thumb = await snapshot(buf);
+        if (!thumb) throw new Error('render failed');
+        await api('/api/admin/rethumb', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ piece: p.key, thumb }),
+        });
+        done++;
+      } catch (err) {
+        console.warn('rebuild failed for', p.key, err);
+      }
+    }
+    btn.disabled = false;
+    btn.textContent = 'Rebuild all';
+    toast(`Rebuilt ${done} of ${list.length} thumbnail${list.length === 1 ? '' : 's'}.`);
+    load();
+  }
+
   const load = () =>
     api('/api/admin')
       .then((d) => {
@@ -338,6 +390,7 @@
           render(d);
           $('ad-gate').hidden = true;
           $('ad-body').hidden = false;
+          loadStale();
         } catch (err) {
           // A render error must not leave a blank body with no explanation.
           // Show it on the page: a console-only error looks like a blank page.
@@ -401,6 +454,9 @@
         });
     });
   }
+
+  const rebuildBtn = $('rebuild-thumbs');
+  if (rebuildBtn) rebuildBtn.addEventListener('click', () => rebuildThumbs(rebuildBtn));
 
   load();
   setInterval(load, 30000); // keep the queue fresh while it sits open

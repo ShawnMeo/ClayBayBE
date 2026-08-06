@@ -404,12 +404,14 @@ export default async (req, context) => {
       const key = `${user}/${id}`;
       await files().set(`${key}/model.glb`, src);
 
-      const images = [];
+      // The shelf thumbnail is already a render of the model, so keep it as
+      // the piece's render — not as a reference photo, which it never was.
+      let thumb = null;
       if (entry.thumb) {
         const t = await fetch(new URL('/models/' + entry.thumb, url.origin)).then((r) => (r.ok ? r.arrayBuffer() : null));
         if (t) {
-          await files().set(`${key}/01-front.png`, t);
-          images.push({ file: '01-front.png', view: 'front', bytes: t.byteLength });
+          await files().set(`${key}/render.png`, t);
+          thumb = `api/blob/${key}/render.png`;
         }
       }
 
@@ -417,9 +419,9 @@ export default async (req, context) => {
         key, id, creator: user, owner: user,
         note: entry.name || file, status: 'done',
         submitted: new Date().toISOString(),
-        images, boughtFromShelf: file,
+        images: [], boughtFromShelf: file,
         model: `api/blob/${key}/model.glb`,
-        thumb: images.length ? `api/blob/${key}/01-front.png` : null,
+        thumb,
         modelBytes: src.byteLength,
       });
 
@@ -486,6 +488,37 @@ export default async (req, context) => {
       rec.publishedBy = user;
       await putJson(pieceKey(rec.key), rec);
       return json(200, { ok: true, bytes: buf.length, name: rec.note || rec.id });
+    }
+
+    /* POST /api/admin/rethumb { piece, thumb } — replace a piece's thumbnail
+       with a render of its model. Used to backfill pieces published before
+       renders existed, whose thumbnail is still a reference photo. */
+    if (route === 'admin/rethumb' && method === 'POST') {
+      const user = await currentUser(req);
+      if (!isAdmin(user)) return json(403, { error: 'Not an admin.' });
+      const body = await req.json().catch(() => ({}));
+      const rec = await meta().get(pieceKey(String(body.piece || '')), { type: 'json' });
+      if (!rec) return json(404, { error: 'No such piece.' });
+
+      const shot = /^data:image\/png;base64,(.*)$/s.exec(String(body.thumb || ''));
+      if (!shot) return json(400, { error: 'Send a PNG data URL.' });
+      const png = Buffer.from(shot[1], 'base64');
+      if (!png.length) return json(400, { error: 'That render is empty.' });
+
+      await files().set(`${rec.key}/render.png`, png);
+      rec.thumb = `api/blob/${rec.key}/render.png`;
+      await putJson(pieceKey(rec.key), rec);
+      return json(200, { ok: true, thumb: rec.thumb, name: rec.note || rec.id });
+    }
+
+    /* GET /api/admin/stale — finished pieces whose thumbnail is not a render. */
+    if (route === 'admin/stale' && method === 'GET') {
+      const user = await currentUser(req);
+      if (!isAdmin(user)) return json(403, { error: 'Not an admin.' });
+      const stale = (await allPieces())
+        .filter((p) => p.status === 'done' && p.model && !/\/render\.png$/.test(p.thumb || ''))
+        .map((p) => ({ key: p.key, name: p.note || p.id, model: p.model, owner: p.owner }));
+      return json(200, { stale });
     }
 
     if (route === 'admin/listing' && method === 'POST') {

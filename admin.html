@@ -60,6 +60,16 @@
       <div class="ad-rows" id="rows-live"></div>
     </section>
 
+    <section class="ad-section" id="sec-stale" hidden>
+      <h2>Thumbnails to rebuild <span class="ad-count" id="c-stale">0</span></h2>
+      <p class="ad-note">
+        These pieces still show a reference photo instead of a render of the
+        model. Rebuilding renders each one in this browser and stores it.
+      </p>
+      <button class="ad-btn ok" id="rebuild-thumbs" type="button">Rebuild all</button>
+      <div class="ad-rows" id="rows-stale"></div>
+    </section>
+
     <section class="ad-section">
       <h2>Collectors <span class="ad-count" id="c-users">0</span></h2>
       <div class="ad-rows" id="rows-users"></div>
@@ -69,7 +79,7 @@
 
 <div id="toast" role="status"></div>
 <script src="js/avatars.js?v=baad8e7e"></script>
-<script src="js/admin.js?v=23b6a46f"></script>
+<script src="js/admin.js?v=26683e6e"></script>
 <script src="js/theme.js?v=0c2c0e0d"></script>
 </body>
 </html>
