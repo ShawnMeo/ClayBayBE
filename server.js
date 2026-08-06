@@ -193,7 +193,7 @@ function me(req, res) {
   if (!user) return json(res, 200, { user: null });
   const db = loadAccounts();
   const acct = db.users[user];
-  json(res, 200, { user, coins: acct ? acct.coins : 0, price: MODEL_PRICE, admin: isAdmin(user), avatar: (acct && acct.avatar) || null });
+  json(res, 200, { user, coins: acct ? acct.coins : 0, price: MODEL_PRICE, admin: isAdmin(user), avatar: (acct && acct.avatar) || null, bio: (acct && acct.bio) || '' });
 }
 
 const readBody = (req, limit) =>
@@ -649,6 +649,50 @@ async function setAvatar(req, res) {
   json(res, 200, { ok: true, avatar });
 }
 
+/* GET /api/profile?user=x — public page: who they are and what they own. */
+function profile(req, res, url) {
+  const who = safeUser(url.searchParams.get('user'));
+  if (!who) return json(res, 400, { error: 'Missing user.' });
+  const db = loadAccounts();
+  const acct = db.users[who];
+  if (!acct) return json(res, 404, { error: 'No such collector.' });
+
+  const owned = allPieces()
+    .filter((p) => p.owner === who && p.status === 'done')
+    .sort((a, b) => String(b.id).localeCompare(String(a.id)))
+    .map((p) => ({
+      key: p.key, serial: p.serial, name: p.note || p.id,
+      thumb: p.thumb, model: p.model, modelBytes: p.modelBytes,
+      listing: p.listing || null,
+      madeByThem: p.creator === who && !p.boughtFromShelf,
+    }));
+
+  json(res, 200, {
+    user: who,
+    avatar: acct.avatar || null,
+    bio: acct.bio || '',
+    joined: acct.created || null,
+    pieces: owned,
+    listed: owned.filter((p) => p.listing === 'approved').length,
+    viewerIsOwner: currentUser(req) === who,
+  });
+}
+
+/* POST /api/bio { bio } — edit your own blurb. */
+async function setBio(req, res) {
+  const user = requireUser(req, res);
+  if (!user) return;
+  let body;
+  try { body = JSON.parse((await readBody(req, 4 * 1024)).toString('utf8')); }
+  catch { return json(res, 400, { error: 'Bad request body.' }); }
+  const bio = String(body.bio || '').slice(0, 280);
+  const db = loadAccounts();
+  if (!db.users[user]) return json(res, 401, { error: 'Please sign in again.' });
+  db.users[user].bio = bio;
+  saveAccounts(db);
+  json(res, 200, { ok: true, bio });
+}
+
 /* GET /api/admin — everything awaiting review. */
 function admin(req, res) {
   const user = currentUser(req);
@@ -749,6 +793,8 @@ http
     if (url.pathname === '/api/buy' && req.method === 'POST') return buy(req, res).catch(fail);
     if (url.pathname === '/api/list' && req.method === 'POST') return listPiece(req, res).catch(fail);
     if (url.pathname === '/api/avatar' && req.method === 'POST') return setAvatar(req, res).catch(fail);
+    if (url.pathname === '/api/profile' && req.method === 'GET') return profile(req, res, url);
+    if (url.pathname === '/api/bio' && req.method === 'POST') return setBio(req, res).catch(fail);
     if (url.pathname === '/api/admin' && req.method === 'GET') return admin(req, res);
     if (url.pathname === '/api/admin/listing' && req.method === 'POST') return adminListing(req, res).catch(fail);
     if (url.pathname === '/api/submit' && req.method === 'POST') return submit(req, res).catch(fail);

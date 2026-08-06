@@ -4,8 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ClayBay</title>
+<script>try{document.documentElement.dataset.theme=localStorage.getItem("claybay.theme")==="dark"?"dark":"light"}catch(e){}</script>
 <link rel="stylesheet" href="css/fonts.css?v=c9ef497b">
-<link rel="stylesheet" href="css/styles.css?v=ac4b76f7">
+<link rel="stylesheet" href="css/styles.css?v=2444fede">
 </head>
 <body>
 <header>
@@ -48,6 +49,17 @@
       </svg>
     </button>
     <span class="mode-label" id="mode-label" aria-hidden="true">Viewer</span>
+    <button class="icon-btn" id="theme-toggle" aria-label="Switch to dark mode" title="Dark mode">
+      <svg id="ic-moon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"
+           stroke-linejoin="round" aria-hidden="true">
+        <path d="M13.2 9.6 A5.6 5.6 0 0 1 6.4 2.8 A5.8 5.8 0 1 0 13.2 9.6 Z"/>
+      </svg>
+      <svg id="ic-sun" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"
+           stroke-linecap="round" aria-hidden="true" style="display:none">
+        <circle cx="8" cy="8" r="3.1"/>
+        <path d="M8 1.4v1.6M8 13v1.6M1.4 8h1.6M13 8h1.6M3.4 3.4l1.1 1.1M11.5 11.5l1.1 1.1M12.6 3.4l-1.1 1.1M4.5 11.5l-1.1 1.1"/>
+      </svg>
+    </button>
     <button class="icon-btn" id="prev" aria-label="Previous piece">
       <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3 L5 8 L10 13"/></svg>
     </button>
@@ -129,6 +141,8 @@
       <!-- On phones the studio card moves in here: coins on the shop view,
            the photo uploader on the collection view. -->
       <div id="gv-studio"></div>
+      <!-- Collector profile: banner, bio, then their pieces in the grid below. -->
+      <div id="gv-profile" hidden></div>
       <div class="gv-grid" id="gv-grid"></div>
     </div>
   </section>
@@ -140,8 +154,10 @@
 <script src="js/app.bundle.js?v=8f1f9538"></script>
 <script src="js/avatars.js?v=baad8e7e"></script>
 <script src="js/models-folder.js?v=0c836ed3"></script>
-<script src="js/gallery-view.js?v=50cb70b3"></script>
+<script src="js/profile.js?v=d7b80e42"></script>
+<script src="js/gallery-view.js?v=a7fd938d"></script>
 <script src="js/account.js?v=7f10f75a"></script>
 <script src="js/trades.js?v=95deffc9"></script>
+<script src="js/theme.js?v=0c2c0e0d"></script>
 </body>
 </html>

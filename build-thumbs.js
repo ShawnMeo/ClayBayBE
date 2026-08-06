@@ -12,7 +12,9 @@ const SITE=__dirname;
   const p = await (await b.newContext({ viewport:{width:640,height:640}, deviceScaleFactor:2 })).newPage();
   await p.goto('http://localhost:8777/', { waitUntil:'networkidle' });
   await p.waitForTimeout(6000);
-  await p.addStyleTag({ content:'.col,header,.stagebar,.quote{display:none!important} #stage::before{display:none!important}' });
+  // Transparent background: the thumbnails then sit on any page colour, which
+  // is what lets dark mode work without blend-mode tricks.
+  await p.addStyleTag({ content:'.col,header,.stagebar,.quote{display:none!important} #stage::before{display:none!important} html,body,main{background:transparent!important}' });
   for (let i=0;i<models.length;i++){
     await p.$$eval('#shelf .spec-btn', (els,i)=>els[i].click(), i);
     await p.waitForTimeout(8500);
@@ -21,7 +23,7 @@ const SITE=__dirname;
     // No zoom: the viewer already frames each piece to a uniform size.
     // Square crop around the model's resting area, generous margins.
     const out = path.join(SITE,'models/thumbs', models[i].file.replace(/\.(glb|gltf)$/i,'') + '.png');
-    await p.screenshot({ path: out, clip:{ x:150, y:60, width:340, height:340 } });
+    await p.screenshot({ path: out, clip:{ x:150, y:60, width:340, height:340 }, omitBackground: true });
     console.log('thumb:', path.basename(out));
   }
   await b.close();

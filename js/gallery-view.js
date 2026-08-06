@@ -124,9 +124,10 @@
   const NEXT_ICON = { viewer: 'ic-cube', shelf: 'ic-grid', owned: 'ic-shelf' };
   const THIS_LABEL = { viewer: 'Viewer', shelf: 'The Shelf', owned: 'Collection' };
   let view = 'viewer';
+  let profileUser = null; // set when viewing someone's profile
 
   const setMode = (next) => {
-    view = VIEWS.includes(next) ? next : 'viewer';
+    view = VIEWS.includes(next) || next === 'profile' ? next : 'viewer';
     open = view !== 'viewer';
 
     const panel = $('gallery-view');
@@ -135,30 +136,66 @@
 
     panel.hidden = !open;
     document.body.classList.toggle('gallery-open', open);
+    const pf = $('gv-profile');
+    if (pf) pf.hidden = view !== 'profile';
+    document.body.classList.toggle('profile-open', view === 'profile');
 
     // The button advertises the *next* view so it reads as a control.
-    btn.setAttribute('aria-label', `View ${NEXT_LABEL[view]}`);
-    btn.setAttribute('title', NEXT_LABEL[view]);
+    const nextLabel = view === 'profile' ? 'The Shelf' : NEXT_LABEL[view];
+    btn.setAttribute('aria-label', `View ${nextLabel}`);
+    btn.setAttribute('title', nextLabel);
     for (const id of ['ic-cube', 'ic-grid', 'ic-shelf']) {
       const el = $(id);
-      if (el) el.style.display = id === NEXT_ICON[view] ? '' : 'none';
+      if (el) el.style.display = id === (view === 'profile' ? 'ic-grid' : NEXT_ICON[view]) ? '' : 'none';
     }
     const label = $('mode-label');
-    if (label) label.textContent = THIS_LABEL[view];
+    if (label) label.textContent = view === 'profile' ? 'Profile' : THIS_LABEL[view];
 
     // Keep the view in the URL so a refresh lands back on the same view
     // instead of resetting to the 3D stage. replaceState, not location.hash,
     // so cycling views doesn't pile up history entries.
-    history.replaceState(null, '', view === 'viewer' ? location.pathname : '#' + view);
+    history.replaceState(null, '',
+      view === 'viewer' ? location.pathname
+      : view === 'profile' ? '#u/' + profileUser
+      : '#' + view);
 
-    if (open) {
+    if (open && view !== 'profile') {
       build();
       if (view === 'owned') loadOwned().then(build);
       else loadListings().then(build);
     }
   };
 
-  const cycle = () => setMode(VIEWS[(VIEWS.indexOf(view) + 1) % VIEWS.length]);
+  const cycle = () =>
+    // A profile is somewhere you land, not a step in the loop, so the button
+    // takes you back to the shelf rather than deeper.
+    setMode(view === 'profile' ? 'shelf' : VIEWS[(VIEWS.indexOf(view) + 1) % VIEWS.length]);
+
+  /* Load a piece from someone's profile into the viewer. */
+  const openProfilePiece = (p) => {
+    window.__OFF_SHELF__ = true;
+    openInViewer(p.name, p.model, (buf) =>
+      window.__LOAD_BUFFER__(buf, p.name, p.modelBytes || 0, null)
+    );
+  };
+
+  /* Open a collector's profile. */
+  const showProfile = (who) => {
+    if (!window.__PROFILE__) return;
+    profileUser = who;
+    setMode('profile');
+    window.__PROFILE__.load(who)
+      .then(() => {
+        if (view !== 'profile') return; // navigated away while loading
+        window.__PROFILE__.render($('gv-profile'));
+        build();
+      })
+      .catch((e) => {
+        toast(e.message);
+        setMode('shelf');
+      });
+  };
+  window.__SHOW_PROFILE__ = showProfile;
 
   let owned = [];
   let listings = []; // pieces other collectors have up for sale
@@ -213,9 +250,18 @@
           );
         },
       });
-      const from = document.createElement('span');
-      from.className = 'gv-tag';
+      // The seller tag is a link to their profile.
+      const from = document.createElement(l.mine ? 'span' : 'button');
+      from.className = 'gv-tag' + (l.mine ? '' : ' is-link');
       from.textContent = l.mine ? 'Your listing' : 'From ' + l.seller;
+      if (!l.mine) {
+        from.type = 'button';
+        from.title = `See ${l.seller}'s collection`;
+        from.addEventListener('click', (e) => {
+          e.stopPropagation();
+          showProfile(l.seller);
+        });
+      }
       tile.querySelector('.gv-thumb').appendChild(from);
 
       const act = document.createElement('button');
@@ -375,6 +421,14 @@
     placeStudio();
     grid.innerHTML = '';
     const title = $('gv-title');
+    const count = $('gv-count');
+    if (view === 'profile') {
+      // The profile header carries the name, so the page title steps back.
+      if (title) title.textContent = '';
+      if (count) count.textContent = '';
+      if (window.__PROFILE__) window.__PROFILE__.cards(grid, card, openProfilePiece);
+      return;
+    }
     if (title) title.textContent = view === 'owned' ? 'Collection' : 'The Shelf';
     if (view === 'owned') buildOwned(grid);
     else buildShelf(grid);
@@ -422,7 +476,8 @@
     });
     // Restore the view a refresh (or shared link) points at.
     const fromHash = location.hash.replace('#', '');
-    if (VIEWS.includes(fromHash) && fromHash !== 'viewer') setMode(fromHash);
+    if (fromHash.startsWith('u/')) showProfile(fromHash.slice(2));
+    else if (VIEWS.includes(fromHash) && fromHash !== 'viewer') setMode(fromHash);
     else build();
   };
 

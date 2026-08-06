@@ -29,13 +29,21 @@
   --glaze:#37527A; --wood:#6B7280; --on-glaze:#FFFFFF; --clay:#B4643F;
   --shadow:0 10px 30px rgba(20,20,24,.09), 0 2px 6px rgba(20,20,24,.05);
 }
+/* Dark palette, neutral to match the white light theme — the old values were
+   warm brown, left over from the original artifact. */
 :root[data-theme="dark"]{
-  --paper:#1B1712; --paper-2:#15110D; --card:rgba(37,31,24,.92); --card-solid:#251F18;
-  --ink:#EBE1D0; --ink-soft:rgba(235,225,208,.68); --ink-faint:rgba(235,225,208,.45);
-  --line:rgba(235,225,208,.15); --line-strong:rgba(235,225,208,.30);
-  --glaze:#9CB5D8; --wood:#B08D62; --on-glaze:#151A22; --clay:#D08A62;
-  --shadow:0 10px 30px rgba(0,0,0,.35), 0 2px 6px rgba(0,0,0,.25);
+  color-scheme: dark;
+  --paper:#16171A; --paper-2:#1E2024; --card:rgba(31,33,38,.92); --card-solid:#1F2126;
+  --ink:#E9EAEC; --ink-soft:rgba(233,234,236,.68); --ink-faint:rgba(233,234,236,.45);
+  --line:rgba(233,234,236,.14); --line-strong:rgba(233,234,236,.28);
+  --glaze:#8FAEDA; --wood:#9AA3B0; --on-glaze:#14161A; --clay:#D08A62;
+  --shadow:0 10px 30px rgba(0,0,0,.45), 0 2px 6px rgba(0,0,0,.3);
 }
+/* Thumbnails are rendered with a transparent background (build-thumbs.js),
+   so they sit on whatever the page colour is with no blending tricks. */
+:root[data-theme="dark"] .gv-thumb,
+:root[data-theme="dark"] .spec-btn .thumb,
+:root[data-theme="dark"] .ad-thumb{background:var(--paper-2)}
 
 *{box-sizing:border-box}
 html,body{margin:0;padding:0}
@@ -710,4 +718,64 @@ body.gallery-open .quote{display:none !important}
 .cb-ava.on{border-color:var(--glaze); box-shadow:0 0 0 1px var(--glaze)}
 @media (max-width:620px){
   .cb-avagrid{grid-template-columns:repeat(6,1fr); gap:5px}
+}
+
+/* ---------- collector profiles ---------- */
+/* The profile carries its own header, so hide the page one entirely. */
+body.profile-open .gv-head{display:none}
+
+
+.pf-banner{
+  position:relative; height:132px; border-radius:12px; overflow:hidden;
+  display:grid; place-items:center; margin-bottom:-26px;
+}
+.pf-banner-mark{
+  width:200px; height:200px; opacity:.13; transform:rotate(-8deg);
+  display:block; pointer-events:none;
+}
+.pf-banner-mark svg{width:100%; height:100%; background:none !important}
+
+.pf-head{
+  position:relative; display:flex; align-items:flex-end; gap:14px;
+  padding:0 4px; margin-bottom:12px;
+}
+.pf-avatar{
+  flex:none; width:64px; height:64px; border-radius:50%; overflow:hidden;
+  border:3px solid var(--paper); background:var(--paper-2);
+  display:grid; place-items:center;
+}
+.pf-avatar svg{width:100%; height:100%; display:block; padding:9px}
+.pf-who{flex:1; min-width:0; padding-bottom:4px}
+.pf-name{margin:0; font-size:25px; font-weight:600; line-height:1.1}
+.pf-meta{
+  margin:2px 0 0; font-family:var(--sans); font-size:10px;
+  letter-spacing:.1em; text-transform:uppercase; color:var(--ink-faint);
+}
+.pf-edit{padding-bottom:8px; white-space:nowrap}
+.pf-bio{
+  margin:0 4px 22px; font-size:16px; line-height:1.55;
+  color:var(--ink-soft); max-width:60ch;
+}
+.pf-bio.is-empty{font-style:italic; color:var(--ink-faint)}
+
+.pf-bio-form{margin:0 4px 22px; max-width:60ch}
+.pf-bio-form textarea{
+  width:100%; font-family:var(--sans); font-size:14px; line-height:1.5;
+  color:var(--ink); background:var(--card-solid);
+  border:1px solid var(--line); border-radius:9px; padding:10px 12px;
+  resize:vertical;
+}
+.pf-bio-form textarea:focus{outline:none; border-color:var(--glaze)}
+.pf-bio-actions{display:flex; align-items:center; gap:12px; margin-top:8px}
+
+/* A seller tag that navigates reads as a control. */
+.gv-tag.is-link{cursor:pointer; border:0}
+.gv-tag.is-link:hover{background:var(--glaze); color:var(--on-glaze)}
+
+@media (max-width:620px){
+  .pf-banner{height:96px; margin-bottom:-20px}
+  .pf-banner-mark{width:150px; height:150px}
+  .pf-avatar{width:52px; height:52px}
+  .pf-name{font-size:21px}
+  .pf-bio{font-size:15px}
 }

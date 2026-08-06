@@ -196,7 +196,7 @@ export default async (req, context) => {
       const user = await currentUser(req);
       if (!user) return json(200, { user: null });
       const db = await getJson('accounts', { users: {}, sessions: {} });
-      return json(200, { user, coins: db.users[user]?.coins ?? 0, price: MODEL_PRICE, admin: isAdmin(user), avatar: db.users[user]?.avatar || null });
+      return json(200, { user, coins: db.users[user]?.coins ?? 0, price: MODEL_PRICE, admin: isAdmin(user), avatar: db.users[user]?.avatar || null, bio: db.users[user]?.bio || '' });
     }
 
     /* POST /api/avatar { avatar } — pick your profile mark. */
@@ -214,6 +214,51 @@ export default async (req, context) => {
       db.users[user].avatar = avatar;
       await putJson('accounts', db);
       return json(200, { ok: true, avatar });
+    }
+
+    /* GET /api/profile?user=x — public page: who they are and what they own. */
+    if (route === 'profile' && method === 'GET') {
+      const who = safeUser(url.searchParams.get('user'));
+      if (!who) return json(400, { error: 'Missing user.' });
+      const db = await getJson('accounts', { users: {}, sessions: {} });
+      const acct = db.users[who];
+      if (!acct) return json(404, { error: 'No such collector.' });
+
+      const all = await allPieces();
+      // Everything they own that is finished, listed or not. Coins and the
+      // password hash stay private; only the public face is returned.
+      const owned = all
+        .filter((p) => p.owner === who && p.status === 'done')
+        .sort((a, b) => String(b.id).localeCompare(String(a.id)))
+        .map((p) => ({
+          key: p.key, serial: p.serial, name: p.note || p.id,
+          thumb: p.thumb, model: p.model, modelBytes: p.modelBytes,
+          listing: p.listing || null,
+          madeByThem: p.creator === who && !p.boughtFromShelf,
+        }));
+
+      return json(200, {
+        user: who,
+        avatar: acct.avatar || null,
+        bio: acct.bio || '',
+        joined: acct.created || null,
+        pieces: owned,
+        listed: owned.filter((p) => p.listing === 'approved').length,
+        viewerIsOwner: (await currentUser(req)) === who,
+      });
+    }
+
+    /* POST /api/bio { bio } — edit your own blurb. */
+    if (route === 'bio' && method === 'POST') {
+      const user = await currentUser(req);
+      if (!user) return json(401, { error: 'Please sign in again.' });
+      const body = await req.json().catch(() => ({}));
+      const bio = String(body.bio || '').slice(0, 280);
+      const db = await getJson('accounts', { users: {}, sessions: {} });
+      if (!db.users[user]) return json(401, { error: 'Please sign in again.' });
+      db.users[user].bio = bio;
+      await putJson('accounts', db);
+      return json(200, { ok: true, bio });
     }
 
     /* ---- shop ---- */
