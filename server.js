@@ -71,6 +71,17 @@ const readJson = (file, fallback) => {
 const ACCOUNTS = path.join(ROOT, 'accounts.json');
 const START_COINS = 10000;
 const MODEL_PRICE = 200;
+
+/* Coin bundles — defined server-side so a client cannot ask for an arbitrary
+   top-up. Prices in whole cents. */
+const BUNDLES = [
+  { id: 'starter',   coins: 1000,  cents: 199,  label: 'Starter' },
+  { id: 'potter',    coins: 2750,  cents: 499,  label: 'Potter',  bonus: 375 },
+  { id: 'studio',    coins: 6000,  cents: 999,  label: 'Studio',  bonus: 1000, popular: true },
+  { id: 'kiln',      coins: 13000, cents: 1999, label: 'Kiln',    bonus: 3000 },
+  { id: 'workshop',  coins: 35000, cents: 4999, label: 'Workshop',bonus: 10000 },
+  { id: 'collector', coins: 75000, cents: 9999, label: 'Collector', bonus: 25000 },
+];
 const SESSION_DAYS = 30;
 // Comma-separated usernames with admin rights (env: CLAYBAY_ADMINS).
 const ADMINS = String(process.env.CLAYBAY_ADMINS || '')
@@ -693,6 +704,31 @@ async function setBio(req, res) {
   json(res, 200, { ok: true, bio });
 }
 
+/* GET /api/bundles — what a top-up costs. */
+function bundles(req, res) {
+  json(res, 200, { bundles: BUNDLES, demo: true });
+}
+
+/* POST /api/topup { bundle } — credit a bundle.
+
+   DEMO ONLY: grants Coins without taking payment. With a real processor this
+   should run from a verified webhook, never straight from a click. */
+async function topup(req, res) {
+  const user = requireUser(req, res);
+  if (!user) return;
+  let body;
+  try { body = JSON.parse((await readBody(req, 4 * 1024)).toString('utf8')); }
+  catch { return json(res, 400, { error: 'Bad request body.' }); }
+  const bundle = BUNDLES.find((x) => x.id === String(body.bundle || ''));
+  if (!bundle) return json(res, 400, { error: 'Unknown bundle.' });
+  const db = loadAccounts();
+  const acct = db.users[user];
+  if (!acct) return json(res, 401, { error: 'Please sign in again.' });
+  acct.coins = (acct.coins || 0) + bundle.coins;
+  saveAccounts(db);
+  json(res, 200, { ok: true, coins: acct.coins, added: bundle.coins, bundle: bundle.id });
+}
+
 /* GET /api/admin — everything awaiting review. */
 function admin(req, res) {
   const user = currentUser(req);
@@ -794,6 +830,8 @@ http
     if (url.pathname === '/api/list' && req.method === 'POST') return listPiece(req, res).catch(fail);
     if (url.pathname === '/api/avatar' && req.method === 'POST') return setAvatar(req, res).catch(fail);
     if (url.pathname === '/api/profile' && req.method === 'GET') return profile(req, res, url);
+    if (url.pathname === '/api/bundles' && req.method === 'GET') return bundles(req, res);
+    if (url.pathname === '/api/topup' && req.method === 'POST') return topup(req, res).catch(fail);
     if (url.pathname === '/api/bio' && req.method === 'POST') return setBio(req, res).catch(fail);
     if (url.pathname === '/api/admin' && req.method === 'GET') return admin(req, res);
     if (url.pathname === '/api/admin/listing' && req.method === 'POST') return adminListing(req, res).catch(fail);

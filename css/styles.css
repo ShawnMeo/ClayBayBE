@@ -503,6 +503,8 @@ body.gallery-open .quote{display:none !important}
   font-family:var(--sans); font-size:9.5px; font-weight:600; letter-spacing:.1em;
   text-transform:uppercase; color:var(--wood); font-variant-numeric:tabular-nums;
 }
+/* Balance and its top-up plus share a row. */
+.cb-coinrow{display:flex; align-items:center; gap:6px}
 .cb-alt{margin-top:2px; text-align:center; width:100%}
 
 /* Buy pill — floats over the image on hover, not a shopfront bar. */

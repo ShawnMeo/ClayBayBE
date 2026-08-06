@@ -288,7 +288,10 @@
                 title="Change your mark" aria-label="Change your mark">${avatarSvg()}</button>
         <span class="cb-name-wrap">
           <span>${esc(user)}</span>
-          <span class="cb-coins" id="cb-coins">${coins === null ? '—' : coins.toLocaleString()} Coins</span>
+          <span class="cb-coinrow">
+            <span class="cb-coins" id="cb-coins">${coins === null ? '—' : coins.toLocaleString()} Coins</span>
+            <a class="cb-topup" href="/coins.html" title="Get more Coins" aria-label="Get more Coins">+</a>
+          </span>
         </span>
       </div>
       <div id="cb-maker">

@@ -15,7 +15,7 @@ const path = require('path');
 const crypto = require('crypto');
 
 const ROOT = __dirname;
-const PAGES = ['index.html', 'admin.html'];
+const PAGES = ['index.html', 'admin.html', 'coins.html'];
 const ASSET = /(href|src)="((?:css|js)\/[^"?]+)(\?v=[a-f0-9]+)?"/g;
 
 const hashOf = (rel) => {

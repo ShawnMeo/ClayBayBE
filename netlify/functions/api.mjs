@@ -22,6 +22,18 @@ const ADMINS = String(process.env.CLAYBAY_ADMINS || '')
   .split(',').map((s) => s.trim().toLowerCase()).filter(Boolean);
 const isAdmin = (u) => !!u && ADMINS.includes(u);
 const MAX_IMAGES = 6;
+
+/* Coin bundles. Defined here, not in the page, so the amount credited comes
+   from the server — a client cannot ask for an arbitrary top-up. Prices are
+   in whole cents to avoid float rounding. */
+const BUNDLES = [
+  { id: 'starter',   coins: 1000,  cents: 199,  label: 'Starter' },
+  { id: 'potter',    coins: 2750,  cents: 499,  label: 'Potter',  bonus: 375 },
+  { id: 'studio',    coins: 6000,  cents: 999,  label: 'Studio',  bonus: 1000, popular: true },
+  { id: 'kiln',      coins: 13000, cents: 1999, label: 'Kiln',    bonus: 3000 },
+  { id: 'workshop',  coins: 35000, cents: 4999, label: 'Workshop',bonus: 10000 },
+  { id: 'collector', coins: 75000, cents: 9999, label: 'Collector', bonus: 25000 },
+];
 const MAX_BYTES = 2 * 1024 * 1024; // after client-side downscaling
 
 // Strong consistency matters here: without it a session written during
@@ -259,6 +271,31 @@ export default async (req, context) => {
       db.users[user].bio = bio;
       await putJson('accounts', db);
       return json(200, { ok: true, bio });
+    }
+
+    /* GET /api/bundles — what a top-up costs. */
+    if (route === 'bundles' && method === 'GET') {
+      return json(200, { bundles: BUNDLES, demo: true });
+    }
+
+    /* POST /api/topup { bundle } — credit a bundle.
+
+       DEMO ONLY: this grants Coins without taking payment. When a real
+       processor is added, this endpoint should only ever run from a verified
+       webhook, never straight from a click. */
+    if (route === 'topup' && method === 'POST') {
+      const user = await currentUser(req);
+      if (!user) return json(401, { error: 'Please sign in again.' });
+      const body = await req.json().catch(() => ({}));
+      const bundle = BUNDLES.find((x) => x.id === String(body.bundle || ''));
+      if (!bundle) return json(400, { error: 'Unknown bundle.' });
+
+      const db = await getJson('accounts', { users: {}, sessions: {} });
+      const acct = db.users[user];
+      if (!acct) return json(401, { error: 'Please sign in again.' });
+      acct.coins = (acct.coins || 0) + bundle.coins;
+      await putJson('accounts', db);
+      return json(200, { ok: true, coins: acct.coins, added: bundle.coins, bundle: bundle.id });
     }
 
     /* ---- shop ---- */

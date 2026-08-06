@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ClayBay · Coins</title>
+<script>try{document.documentElement.dataset.theme=localStorage.getItem("claybay.theme")==="dark"?"dark":"light"}catch(e){}</script>
+<link rel="stylesheet" href="css/fonts.css?v=c9ef497b">
+<link rel="stylesheet" href="css/styles.css?v=c1058000">
+<link rel="stylesheet" href="css/coins.css?v=98b63755">
+</head>
+<body class="coins-body">
+<header>
+  <a class="brand" href="/">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" aria-hidden="true">
+      <path d="M9.2 3 h5.6"/>
+      <path d="M10 3 C10.2 4.6, 9.6 5.6, 8.2 6.6 C5.6 8.4, 5.4 14.6, 8.4 17 C10.5 18.8, 13.5 18.8, 15.6 17 C18.6 14.6, 18.4 8.4, 15.8 6.6 C14.4 5.6, 13.8 4.6, 14 3"/>
+      <path d="M7 20.5 h10"/>
+    </svg>
+    <div class="brand-text">
+      <span class="word">Clay<em>Bay</em></span>
+      <span class="tag">Coins</span>
+    </div>
+  </a>
+  <div class="masthead"><div class="m-name" id="cn-balance">—</div></div>
+  <div class="head-tools">
+    <button class="icon-btn" id="theme-toggle" aria-label="Switch to dark mode" title="Dark mode">
+      <svg id="ic-moon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"
+           stroke-linejoin="round" aria-hidden="true">
+        <path d="M13.2 9.6 A5.6 5.6 0 0 1 6.4 2.8 A5.8 5.8 0 1 0 13.2 9.6 Z"/>
+      </svg>
+      <svg id="ic-sun" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"
+           stroke-linecap="round" aria-hidden="true" style="display:none">
+        <circle cx="8" cy="8" r="3.1"/>
+        <path d="M8 1.4v1.6M8 13v1.6M1.4 8h1.6M13 8h1.6M3.4 3.4l1.1 1.1M11.5 11.5l1.1 1.1M12.6 3.4l-1.1 1.1M4.5 11.5l-1.1 1.1"/>
+      </svg>
+    </button>
+    <a class="cn-back" href="/">Back to the shelf</a>
+  </div>
+</header>
+
+<main class="cn-main">
+  <div class="cn-intro">
+    <h1>More Coins</h1>
+    <p class="cn-sub">Coins buy pieces from the shelf — 200 Coins each. Top up below.</p>
+    <p class="cn-demo" id="cn-demo" hidden>
+      <strong>Demo store.</strong> No card is charged and no payment details are
+      collected — choosing a bundle credits the Coins straight away.
+    </p>
+  </div>
+
+  <div class="cn-grid" id="cn-grid"></div>
+
+  <p class="cn-signin" id="cn-signin" hidden>
+    <a href="/">Sign in on the shelf</a> to top up your balance.
+  </p>
+</main>
+
+<div id="toast" role="status"></div>
+<script src="js/theme.js?v=0c2c0e0d"></script>
+<script src="js/coins.js?v=7ed0d542"></script>
+</body>
+</html>

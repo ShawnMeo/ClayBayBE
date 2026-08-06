@@ -1,0 +1,91 @@
+/* Coin top-up page. Reuses the site tokens; scrolls normally rather than
+   being a fixed 3D stage. */
+.coins-body{height:auto; min-height:100dvh; overflow:auto; display:block}
+.coins-body header{position:sticky; top:0; z-index:5; background:var(--paper)}
+.coins-body .brand{text-decoration:none; color:inherit}
+.cn-back{
+  font-family:var(--sans); font-size:10px; font-weight:600;
+  letter-spacing:.14em; text-transform:uppercase;
+  color:var(--ink-faint); text-decoration:none; white-space:nowrap;
+}
+.cn-back:hover{color:var(--glaze)}
+
+.cn-main{max-width:1000px; margin:0 auto; padding:34px 22px 70px}
+.cn-intro{margin-bottom:28px; max-width:60ch}
+.cn-intro h1{margin:0; font-size:34px; font-weight:600; line-height:1.1}
+.cn-sub{
+  margin:6px 0 0; font-size:16px; line-height:1.55; color:var(--ink-soft);
+}
+.cn-demo{
+  margin:16px 0 0; padding:11px 14px; border-radius:10px;
+  background:var(--paper-2); border:1px solid var(--line);
+  font-family:var(--sans); font-size:11.5px; line-height:1.6; color:var(--ink-soft);
+}
+.cn-demo strong{color:var(--ink)}
+
+.cn-grid{
+  display:grid; gap:16px;
+  grid-template-columns:repeat(auto-fill, minmax(220px, 1fr));
+}
+.cn-card{
+  position:relative; display:flex; flex-direction:column; align-items:flex-start;
+  gap:2px; padding:20px 18px 18px;
+  border:1px solid var(--line); border-radius:14px;
+  background:var(--card-solid); box-shadow:var(--shadow);
+}
+.cn-card.is-popular{border-color:var(--glaze); box-shadow:0 0 0 1px var(--glaze), var(--shadow)}
+.cn-flag{
+  position:absolute; top:-9px; left:18px;
+  font-family:var(--sans); font-size:8.5px; font-weight:700;
+  letter-spacing:.14em; text-transform:uppercase;
+  background:var(--glaze); color:var(--on-glaze);
+  border-radius:999px; padding:3px 9px;
+}
+.cn-name{
+  font-family:var(--sans); font-size:10px; font-weight:600;
+  letter-spacing:.16em; text-transform:uppercase; color:var(--wood);
+}
+.cn-coins{
+  font-size:34px; line-height:1.05; font-variant-numeric:tabular-nums;
+  display:flex; align-items:baseline; gap:7px; margin-top:2px;
+}
+.cn-unit{
+  font-family:var(--sans); font-size:10px; font-weight:600;
+  letter-spacing:.14em; text-transform:uppercase; color:var(--ink-faint);
+}
+.cn-bonus{
+  font-family:var(--sans); font-size:10px; letter-spacing:.06em;
+  color:var(--clay); min-height:14px;
+}
+.cn-rate{
+  font-family:var(--sans); font-size:9.5px; letter-spacing:.08em;
+  text-transform:uppercase; color:var(--ink-faint); margin-top:6px;
+  font-variant-numeric:tabular-nums;
+}
+.cn-buy{width:100%; margin-top:14px; font-size:13px; padding:11px 16px}
+.cn-buy:disabled{opacity:.6; cursor:default; filter:none}
+
+.cn-signin{
+  margin:22px 0 0; font-family:var(--sans); font-size:12px; color:var(--ink-faint);
+}
+.cn-signin a{color:var(--glaze)}
+
+/* The plus beside the balance in the main app. */
+.cb-topup{
+  flex:none; width:17px; height:17px; border-radius:50%; padding:0;
+  border:1px solid var(--line-strong); color:var(--ink-faint);
+  display:inline-grid; place-items:center; line-height:1;
+  font-family:var(--sans); font-size:12px; text-decoration:none;
+  margin-left:6px; vertical-align:middle;
+}
+.cb-topup:hover{background:var(--glaze); border-color:var(--glaze); color:var(--on-glaze)}
+
+@media (max-width:620px){
+  .cn-main{padding:22px 14px 50px}
+  .cn-intro h1{font-size:27px}
+  .cn-sub{font-size:15px}
+  .cn-grid{grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:12px}
+  .cn-card{padding:16px 14px 14px}
+  .cn-coins{font-size:27px}
+  .cn-back{display:none}
+}
