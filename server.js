@@ -361,7 +361,8 @@ function setMeta(key, patch) {
    Without `owner`, returns everyone's (for picking a trade target). */
 function pieces(req, res, url) {
   const owner = url.searchParams.get('owner');
-  let list = allPieces().filter((p) => p.status === 'done');
+  // A piece in the store is not available to trade.
+  let list = allPieces().filter((p) => p.status === 'done' && !p.listing);
   if (owner) list = list.filter((p) => p.owner === safeUser(owner));
   json(res, 200, { pieces: list.sort((a, b) => String(b.id).localeCompare(String(a.id))) });
 }
@@ -684,8 +685,11 @@ function projects(req, res, url) {
   // A gallery shows what you *own*, not what you uploaded — a traded-away
   // piece leaves, a received one arrives. Still-processing pieces are always
   // shown to their creator so they can see their own queue.
+  // Approved listings live in the store, not your collection — ownership is
+  // kept so you still cannot buy your own piece back.
   const out = allPieces()
-    .filter((p) => p.owner === user || (p.status === 'pending' && p.creator === user))
+    .filter((p) => (p.owner === user || (p.status === 'pending' && p.creator === user))
+                   && p.listing !== 'approved')
     .map((p) => ({
       ...p,
       traded: p.creator !== p.owner, // arrived via a trade

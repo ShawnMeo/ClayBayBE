@@ -291,19 +291,15 @@
       tag.textContent = p.traded ? 'Traded' : p.boughtFromShelf ? 'Bought' : 'Yours';
       tile.querySelector('.gv-thumb').appendChild(tag);
 
-      // Sell pill, mirroring Buy on the shelf. Listings need approval first,
-      // and once sent there is no withdrawing: pending and approved are
-      // status badges, not buttons.
+      // Sell pill, mirroring Buy on the shelf. Listings need approval first
+      // and cannot be withdrawn, so "pending" is a status badge rather than a
+      // button. Approved pieces never reach here — they move to the store.
       const sell = document.createElement('button');
       sell.className = 'gv-buy gv-sell';
       sell.type = 'button';
       if (p.listing === 'pending') {
         sell.textContent = 'Awaiting review';
         sell.classList.add('is-pending');
-        sell.disabled = true;
-      } else if (p.listing === 'approved') {
-        sell.textContent = 'For sale';
-        sell.classList.add('is-live');
         sell.disabled = true;
       } else if (p.listing === 'rejected') {
         sell.textContent = 'Not approved — retry';

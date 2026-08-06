@@ -407,8 +407,13 @@ export default async (req, context) => {
     if (route === 'projects' && method === 'GET') {
       const user = safeUser(url.searchParams.get('user'));
       if (!user) return json(400, { error: 'Missing user.' });
+      // An approved listing has left your hands — it sits in the store until
+      // someone buys it. Ownership stays with you (that is what stops you
+      // buying it back), but it should not still look like part of your
+      // collection. Pending listings stay visible so you can see the request.
       const list = (await allPieces())
-        .filter((p) => p.owner === user || (p.status === 'pending' && p.creator === user))
+        .filter((p) => (p.owner === user || (p.status === 'pending' && p.creator === user))
+                       && p.listing !== 'approved')
         .map((p) => ({ ...p, traded: p.creator !== p.owner }))
         .sort((a, b) => String(b.id).localeCompare(String(a.id)));
       return json(200, { projects: list });
@@ -416,7 +421,9 @@ export default async (req, context) => {
 
     if (route === 'pieces' && method === 'GET') {
       const owner = url.searchParams.get('owner');
-      let list = (await allPieces()).filter((p) => p.status === 'done');
+      // A piece in the store is not available to trade — it is spoken for
+      // until someone buys it or an admin takes it down.
+      let list = (await allPieces()).filter((p) => p.status === 'done' && !p.listing);
       if (owner) list = list.filter((p) => p.owner === safeUser(owner));
       return json(200, { pieces: list.sort((a, b) => String(b.id).localeCompare(String(a.id))) });
     }
