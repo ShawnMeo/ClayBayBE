@@ -75,13 +75,29 @@
 
         for (const m of usable) {
           const url = 'models/' + m.file;
+          const label = m.name || pretty(m.file);
           entries.push(
-            window.__REGISTER_MODEL__(m.name || pretty(m.file), m.size || 0, () =>
-              fetch(url).then((r) => {
-                if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
-                return r.arrayBuffer();
-              })
-            )
+            window.__REGISTER_MODEL__(label, m.size || 0, () => {
+              // Cover the stage for the whole fetch, so clicking a piece never
+              // leaves the previous model sitting there looking unresponsive.
+              const load = window.__STAGE_LOADING__;
+              if (load) load.show(label);
+              return fetch(url)
+                .then((r) => {
+                  if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
+                  return r.arrayBuffer();
+                })
+                .then((buf) => {
+                  // Two frames: the parse + first render land before we uncover.
+                  if (load)
+                    requestAnimationFrame(() => requestAnimationFrame(() => load.hide()));
+                  return buf;
+                })
+                .catch((e) => {
+                  if (load) load.hide();
+                  throw e;
+                });
+            })
           );
         }
 

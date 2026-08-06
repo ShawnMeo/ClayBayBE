@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ClayBay</title>
 <link rel="stylesheet" href="css/fonts.css?v=c9ef497b">
-<link rel="stylesheet" href="css/styles.css?v=6f8e3c0d">
+<link rel="stylesheet" href="css/styles.css?v=e783efec">
 </head>
 <body>
 <header>
@@ -59,6 +59,12 @@
 
 <main>
   <div id="stage" aria-label="3D piece viewer"></div>
+  <!-- Covers the stage while a piece is fetched, so you never sit looking at
+       the previous model wondering whether the click registered. -->
+  <div id="stage-loading" hidden aria-live="polite">
+    <span class="sl-spinner" aria-hidden="true"></span>
+    <span class="sl-name" id="sl-name"></span>
+  </div>
 
   <div class="col left">
     <nav class="card rail" aria-label="Piece collection">
@@ -132,8 +138,8 @@
 <div id="toast" role="status"></div>
 
 <script src="js/app.bundle.js?v=8f1f9538"></script>
-<script src="js/models-folder.js?v=f682d056"></script>
-<script src="js/gallery-view.js?v=3a5953aa"></script>
+<script src="js/models-folder.js?v=0c836ed3"></script>
+<script src="js/gallery-view.js?v=29a0fce3"></script>
 <script src="js/account.js?v=45d16041"></script>
 <script src="js/trades.js?v=95deffc9"></script>
 </body>

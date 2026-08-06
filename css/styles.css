@@ -658,3 +658,26 @@ body.gallery-open .quote{display:none !important}
   padding:4px 9px; margin-right:4px; white-space:nowrap;
 }
 .admin-link:hover{background:var(--clay); color:#fff}
+
+/* ---------- stage loading ----------
+   Sits over the 3D stage while a piece is fetched and parsed. Without it the
+   viewer shows the *previous* model, which reads as a dead click. */
+#stage-loading{
+  position:absolute; inset:0; z-index:1;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:14px; background:var(--paper); pointer-events:none;
+}
+#stage-loading[hidden]{display:none}
+.sl-spinner{
+  width:26px; height:26px; border-radius:50%;
+  border:2px solid var(--line); border-top-color:var(--glaze);
+  animation:sl-spin 800ms linear infinite;
+}
+@keyframes sl-spin{to{transform:rotate(360deg)}}
+.sl-name{
+  font-family:var(--sans); font-size:10px; font-weight:600;
+  letter-spacing:.16em; text-transform:uppercase; color:var(--ink-faint);
+}
+@media (prefers-reduced-motion:reduce){
+  .sl-spinner{animation-duration:2.4s}
+}

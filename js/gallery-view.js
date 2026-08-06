@@ -14,6 +14,41 @@
 
   const toast = (m) => (window.__TOAST__ ? window.__TOAST__(m) : console.log(m));
 
+  /* Switching to the viewer is instant but the model is a multi-MB fetch, so
+     without this you stare at the *previous* piece and wonder if the click
+     landed. Covers the stage until the new piece is actually on the wheel. */
+  const loading = {
+    show(name) {
+      const el = $('stage-loading');
+      if (!el) return;
+      $('sl-name').textContent = name || '';
+      el.hidden = false;
+    },
+    hide() {
+      const el = $('stage-loading');
+      if (el) el.hidden = true;
+    },
+  };
+  window.__STAGE_LOADING__ = loading;
+
+  /* Fetch a model, showing the loader for the whole trip. `run` receives the
+     ArrayBuffer and puts it on the wheel. */
+  const openInViewer = (name, url, run) => {
+    setMode('viewer');
+    loading.show(name);
+    return fetch(url)
+      .then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(String(r.status)))))
+      .then((buf) => {
+        run(buf);
+        // One frame so the first render lands before we uncover the stage.
+        requestAnimationFrame(() => requestAnimationFrame(loading.hide));
+      })
+      .catch(() => {
+        loading.hide();
+        toast(`Could not load "${name}".`);
+      });
+  };
+
   /* Buy a shelf piece with Coins. On success it leaves the shelf for everyone
      and lands in the buyer's gallery, where it can then be traded. */
   function purchase(meta, btn) {
@@ -168,12 +203,10 @@
         sub: fmtSize(l.size),
         badge: l.serial,
         onOpen: () => {
-          setMode('viewer');
           window.__OFF_SHELF__ = true;
-          fetch('api/blob/' + l.piece + '/model.glb')
-            .then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(String(r.status)))))
-            .then((buf) => window.__LOAD_BUFFER__(buf, l.name, l.size || 0, null))
-            .catch(() => toast(`Could not load "${l.name}".`));
+          openInViewer(l.name, 'api/blob/' + l.piece + '/model.glb', (buf) =>
+            window.__LOAD_BUFFER__(buf, l.name, l.size || 0, null)
+          );
         },
       });
       const from = document.createElement('span');
@@ -245,15 +278,11 @@
         sub: fmtSize(p.modelBytes),
         badge: p.serial,
         onOpen: () => {
-          setMode('viewer');
           window.__OFF_SHELF__ = true;
-          fetch(p.model)
-            .then((r) => {
-              if (!r.ok) throw new Error(String(r.status));
-              return r.arrayBuffer();
-            })
-            .then((buf) => window.__LOAD_BUFFER__(buf, p.note || p.id, p.modelBytes || 0, null))
-            .catch(() => toast(`Could not load "${p.note || p.id}".`));
+          const label = p.note || p.id;
+          openInViewer(label, p.model, (buf) =>
+            window.__LOAD_BUFFER__(buf, label, p.modelBytes || 0, null)
+          );
         },
       });
       // Provenance as a quiet corner tag rather than a full-width bar.
