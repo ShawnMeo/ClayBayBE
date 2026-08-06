@@ -445,6 +445,37 @@ export default async (req, context) => {
       });
     }
 
+    /* POST /api/admin/publish { piece, glb } — attach the finished model to a
+       submission and mark it done. glb is a base64 data URL. This is the step
+       that used to be "drop a file in the folder"; Blobs has no folder, so it
+       goes through here. */
+    if (route === 'admin/publish' && method === 'POST') {
+      const user = await currentUser(req);
+      if (!isAdmin(user)) return json(403, { error: 'Not an admin.' });
+      const body = await req.json().catch(() => ({}));
+
+      const rec = await meta().get(pieceKey(String(body.piece || '')), { type: 'json' });
+      if (!rec) return json(404, { error: 'No such piece.' });
+
+      const m = /^data:([^;,]*);base64,(.*)$/s.exec(String(body.glb || ''));
+      if (!m) return json(400, { error: 'Send the model as a base64 data URL.' });
+      const buf = Buffer.from(m[2], 'base64');
+      if (!buf.length) return json(400, { error: 'That file is empty.' });
+      // A .glb starts with the magic "glTF" — catches the wrong file early
+      // rather than after it is already stored.
+      if (buf.slice(0, 4).toString('ascii') !== 'glTF')
+        return json(400, { error: 'That is not a .glb file.' });
+
+      await files().set(`${rec.key}/model.glb`, buf);
+      rec.status = 'done';
+      rec.model = `api/blob/${rec.key}/model.glb`;
+      rec.modelBytes = buf.length;
+      rec.publishedAt = new Date().toISOString();
+      rec.publishedBy = user;
+      await putJson(pieceKey(rec.key), rec);
+      return json(200, { ok: true, bytes: buf.length, name: rec.note || rec.id });
+    }
+
     if (route === 'admin/listing' && method === 'POST') {
       const user = await currentUser(req);
       if (!isAdmin(user)) return json(403, { error: 'Not an admin.' });

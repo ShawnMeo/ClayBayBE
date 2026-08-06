@@ -58,6 +58,49 @@
     return el;
   };
 
+  /* Attach a finished .glb to a submission. This replaces what used to be
+     "drop model.glb in the folder" — Blobs has no folder to drop into. */
+  function pickModel(piece, btn) {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.glb,model/gltf-binary';
+    input.addEventListener('change', () => {
+      const file = input.files && input.files[0];
+      if (!file) return;
+      if (file.size > 5 * 1024 * 1024) {
+        toast(`That model is ${(file.size / 1048576).toFixed(1)} MB — optimise it under 5 MB first.`);
+        return;
+      }
+      btn.disabled = true;
+      btn.textContent = 'Publishing…';
+
+      const fr = new FileReader();
+      fr.onerror = () => {
+        toast('Could not read that file.');
+        btn.disabled = false;
+        btn.textContent = 'Publish model';
+      };
+      fr.onload = () => {
+        api('/api/admin/publish', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ piece: piece.key, glb: fr.result }),
+        })
+          .then((d) => {
+            toast(`Published "${d.name}" — ${Math.round(d.bytes / 1024)} KB. It's in their collection now.`);
+            load();
+          })
+          .catch((e) => {
+            toast(e.message);
+            btn.disabled = false;
+            btn.textContent = 'Publish model';
+          });
+      };
+      fr.readAsDataURL(file);
+    });
+    input.click();
+  }
+
   const review = (piece, action, note) =>
     api('/api/admin/listing', {
       method: 'POST',
@@ -144,17 +187,28 @@
         thumb: p.thumb,
         title: p.note || '(untitled)',
         meta: `${esc(p.creator)} · ${shots.length} photo${shots.length === 1 ? '' : 's'} · ${esc(ago(p.submitted))}`,
+        actions: [
+          {
+            label: 'Publish model',
+            tone: 'ok',
+            run: (btn) => pickModel(p, btn),
+          },
+        ],
       });
 
       // The reference photos themselves — this is the whole point of the
       // queue, so link straight to each one at full size.
       if (shots.length) {
+        // The two backends serve uploads from different roots — Blobs via
+        // /api/blob/, the local dev server from /uploads/. Take the base from
+        // the record's own thumb path rather than assuming either.
+        const base = (p.thumb || '').replace(/[^/]*$/, '') || `api/blob/${p.key}/`;
         const strip = document.createElement('div');
         strip.className = 'ad-shots';
         for (const img of shots) {
           const a = document.createElement('a');
           a.className = 'ad-shot';
-          a.href = `/api/blob/${p.key}/${img.file}`;
+          a.href = '/' + (base + img.file).replace(/^\/+/, '');
           a.target = '_blank';
           a.rel = 'noopener';
           a.title = `${img.view || 'view'} — open full size`;

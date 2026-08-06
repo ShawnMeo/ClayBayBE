@@ -332,7 +332,9 @@ function allPieces() {
         owner: meta.owner || creator.name,
         note: meta.note || '',
         status: hasModel && status === 'done' ? 'done' : 'pending',
-        images: (meta.images || []).length,
+        // The full records, not a count — the admin page lists each photo.
+        // Matches what the Netlify function returns.
+        images: meta.images || [],
         thumb: meta.images && meta.images[0] ? `uploads/${creator.name}/${proj.name}/${meta.images[0].file}` : null,
         model: hasModel ? `uploads/${creator.name}/${proj.name}/model.glb` : null,
         modelBytes: hasModel ? fs.statSync(modelPath).size : 0,
@@ -744,6 +746,34 @@ function admin(req, res) {
   });
 }
 
+/* POST /api/admin/publish { piece, glb } — attach the finished model and mark
+   the submission done. Same job as dropping model.glb into the folder. */
+async function adminPublish(req, res) {
+  const user = currentUser(req);
+  if (!isAdmin(user)) return json(res, 403, { error: 'Not an admin.' });
+  let body;
+  try { body = JSON.parse((await readBody(req, MAX_BODY)).toString('utf8')); }
+  catch { return json(res, 400, { error: 'Bad request body.' }); }
+
+  const rec = allPieces().find((p) => p.key === String(body.piece || ''));
+  if (!rec) return json(res, 404, { error: 'No such piece.' });
+
+  const m = /^data:([^;,]*);base64,(.*)$/s.exec(String(body.glb || ''));
+  if (!m) return json(res, 400, { error: 'Send the model as a base64 data URL.' });
+  const buf = Buffer.from(m[2], 'base64');
+  if (!buf.length) return json(res, 400, { error: 'That file is empty.' });
+  if (buf.slice(0, 4).toString('ascii') !== 'glTF')
+    return json(res, 400, { error: 'That is not a .glb file.' });
+
+  const [creator, id] = rec.key.split('/');
+  const dir = path.join(UPLOADS, safeUser(creator), id);
+  if (!fs.existsSync(dir)) return json(res, 404, { error: 'That submission is missing.' });
+  fs.writeFileSync(path.join(dir, 'model.glb'), buf);
+  fs.writeFileSync(path.join(dir, 'STATUS.txt'), 'done\n');
+  setMeta(rec.key, { publishedAt: new Date().toISOString(), publishedBy: user });
+  json(res, 200, { ok: true, bytes: buf.length, name: rec.note || rec.id });
+}
+
 /* POST /api/admin/listing  { piece, action: approve|reject|remove } */
 async function adminListing(req, res) {
   const user = currentUser(req);
@@ -835,6 +865,7 @@ http
     if (url.pathname === '/api/bio' && req.method === 'POST') return setBio(req, res).catch(fail);
     if (url.pathname === '/api/admin' && req.method === 'GET') return admin(req, res);
     if (url.pathname === '/api/admin/listing' && req.method === 'POST') return adminListing(req, res).catch(fail);
+    if (url.pathname === '/api/admin/publish' && req.method === 'POST') return adminPublish(req, res).catch(fail);
     if (url.pathname === '/api/submit' && req.method === 'POST') return submit(req, res).catch(fail);
     if (url.pathname === '/api/projects' && req.method === 'GET') return projects(req, res, url);
     if (url.pathname === '/api/pieces' && req.method === 'GET') return pieces(req, res, url);

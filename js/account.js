@@ -413,9 +413,11 @@
         li.appendChild(btn);
       } else {
         li.className = 'cb-queued';
+        // `images` is the array of photo records, not a count.
+        const shots = Array.isArray(p.images) ? p.images.length : p.images || 0;
         li.innerHTML = `<span class="cb-spin" aria-hidden="true"></span><span>${esc(
           p.note || 'Your piece'
-        )}<br><span class="c">${p.images} photo${p.images === 1 ? '' : 's'} · in the queue</span></span>`;
+        )}<br><span class="c">${shots} photo${shots === 1 ? '' : 's'} · in the queue</span></span>`;
       }
       ul.appendChild(li);
     }
