@@ -84,7 +84,7 @@ header{
   font-family:var(--sans); font-size:13px; font-weight:600;
   letter-spacing:.28em; text-transform:uppercase;
 }
-.masthead .m-latin{font-style:italic; font-size:14px; color:var(--ink-soft)}
+.masthead .m-latin{display:none}
 
 .head-tools{justify-self:end; display:flex; align-items:center; gap:8px}
 .head-tools .counter{
@@ -118,7 +118,11 @@ main{flex:1; position:relative; min-height:0}
 }
 .col > *{pointer-events:auto}
 .col.left{left:20px}
-.col.right{right:20px; width:300px}
+/* The visiting-piece dossier is gone. Its elements stay in the DOM because
+   the viewer bundle writes to them on every model load (a chain of
+   .textContent assignments that would throw on the first missing one), but
+   nothing is shown. */
+.col.right{display:none}
 
 .card{
   background:var(--card); border:1px solid var(--line);
@@ -548,10 +552,9 @@ body.gallery-open .quote{display:none !important}
 
   /* Phone first page is just: viewer, the wheel, maker's note.
      Browsing and buying live in the shop/collection views, reached from the
-     header button — so the rails and the dossier are hidden here. */
+     header button — so the rails are hidden here. */
   .col.left{flex-direction:column !important; gap:10px}
   .rail{display:none}                 /* shelf + your pieces rails */
-  .col.right{display:none}            /* the visiting-piece dossier */
   .account{order:2}                   /* studio moves into the grid views */
   #cb-trades{order:3}
   .finding{order:1}                   /* maker's note, right after the wheel */
