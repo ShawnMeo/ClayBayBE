@@ -178,15 +178,23 @@
       });
       const from = document.createElement('span');
       from.className = 'gv-tag';
-      from.textContent = 'From ' + l.seller;
+      from.textContent = l.mine ? 'Your listing' : 'From ' + l.seller;
       tile.querySelector('.gv-thumb').appendChild(from);
 
-      const buy = document.createElement('button');
-      buy.className = 'gv-buy';
-      buy.type = 'button';
-      buy.innerHTML = `Buy <span class="gv-price">${PRICE}</span>`;
-      buy.addEventListener('click', () => purchase({ piece: l.piece, name: l.name }, buy));
-      tile.querySelector('.gv-actions').appendChild(buy);
+      const act = document.createElement('button');
+      act.className = 'gv-buy';
+      act.type = 'button';
+      if (l.mine) {
+        // You can see your own piece is live, but not buy it back.
+        act.classList.add('gv-sell', 'is-live');
+        act.textContent = 'Listed by you';
+        act.disabled = true;
+        tile.classList.add('is-listed');
+      } else {
+        act.innerHTML = `Buy <span class="gv-price">${PRICE}</span>`;
+        act.addEventListener('click', () => purchase({ piece: l.piece, name: l.name }, act));
+      }
+      tile.querySelector('.gv-actions').appendChild(act);
       grid.appendChild(tile);
     });
 

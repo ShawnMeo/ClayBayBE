@@ -516,10 +516,12 @@ function shop(req, res) {
     .filter((m) => !sold[m.file])
     .map((m) => ({ file: m.file, name: m.name, size: m.size, thumb: m.thumb || null }));
   // Pieces users have put up for sale, hidden from their own owner.
+  // Sellers see their own listings too, marked as theirs.
   const listings = all
-    .filter((p) => p.listing === 'approved' && p.status === 'done' && p.owner !== viewer)
+    .filter((p) => p.listing === 'approved' && p.status === 'done')
     .map((p) => ({ piece: p.key, name: p.note || p.id, size: p.modelBytes,
-                   thumbUrl: p.thumb, seller: p.owner, serial: p.serial }));
+                   thumbUrl: p.thumb, seller: p.owner, serial: p.serial,
+                   mine: p.owner === viewer }));
   json(res, 200, { models: list, listings, price: MODEL_PRICE });
 }
 

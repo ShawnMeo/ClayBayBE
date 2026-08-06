@@ -207,8 +207,10 @@ export default async (req, context) => {
       const viewer = await currentUser(req);
       // House stock (models/) plus pieces users have listed for sale. A
       // listing is a piece with listed:true, shown to everyone but its owner.
+      // Sellers see their own listings too — marked as theirs, so they can
+      // confirm a piece went live. The buy button is what gets withheld.
       const listings = all
-        .filter((p) => p.listing === 'approved' && p.status === 'done' && p.owner !== viewer)
+        .filter((p) => p.listing === 'approved' && p.status === 'done')
         .map((p) => ({
           piece: p.key,
           name: p.note || p.id,
@@ -216,6 +218,7 @@ export default async (req, context) => {
           thumbUrl: p.thumb,
           seller: p.owner,
           serial: p.serial,
+          mine: p.owner === viewer,
         }));
       return json(200, {
         models: (manifest.models || []).filter((m) => !sold[m.file]),
