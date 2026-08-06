@@ -46,3 +46,28 @@ which imports `node:fs`. We only use `WebIO`, so stubbing them is safe.
 
 `KHR_mesh_quantization` (what `quantize()` emits) is core three.js — no
 external decoder, unlike Draco.
+
+---
+
+# js/glb-snapshot.js
+
+A three.js renderer bundled the same way, used at publish time to render the
+finished model to a transparent PNG. That render becomes the piece's
+thumbnail — before this, a piece showed the maker's *reference photo*, which
+is the input rather than the work and looked nothing like it on the shelf.
+
+Lighting matches the viewer so a thumbnail reads like the real thing, and the
+camera frames on the piece's bounding sphere so a squat pot and a tall vase
+both fill the tile.
+
+## Regenerating
+
+```sh
+npm i three
+npx esbuild snap-entry.mjs --bundle --format=esm --minify \
+  --outfile=js/glb-snapshot.js --platform=browser
+```
+
+`snap-entry.mjs` exports one function, `snapshotGlb(arrayBuffer, size)`,
+returning a PNG data URL. It disposes its WebGL context after each render —
+without that, a handful of publishes exhausts the browser's context limit.

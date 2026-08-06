@@ -335,7 +335,13 @@ function allPieces() {
         // The full records, not a count — the admin page lists each photo.
         // Matches what the Netlify function returns.
         images: meta.images || [],
-        thumb: meta.images && meta.images[0] ? `uploads/${creator.name}/${proj.name}/${meta.images[0].file}` : null,
+        // Prefer a render of the finished model; fall back to the first
+        // reference photo while it is still only a submission.
+        thumb: meta.render
+          ? `uploads/${creator.name}/${proj.name}/${meta.render}`
+          : meta.images && meta.images[0]
+            ? `uploads/${creator.name}/${proj.name}/${meta.images[0].file}`
+            : null,
         model: hasModel ? `uploads/${creator.name}/${proj.name}/model.glb` : null,
         modelBytes: hasModel ? fs.statSync(modelPath).size : 0,
         submitted: meta.submitted || null,
@@ -770,7 +776,19 @@ async function adminPublish(req, res) {
   if (!fs.existsSync(dir)) return json(res, 404, { error: 'That submission is missing.' });
   fs.writeFileSync(path.join(dir, 'model.glb'), buf);
   fs.writeFileSync(path.join(dir, 'STATUS.txt'), 'done\n');
-  setMeta(rec.key, { publishedAt: new Date().toISOString(), publishedBy: user });
+
+  const patch = { publishedAt: new Date().toISOString(), publishedBy: user };
+  // A render of the finished model becomes the thumbnail, replacing the
+  // maker's reference photo.
+  const shot = /^data:image\/png;base64,(.*)$/s.exec(String(body.thumb || ''));
+  if (shot) {
+    const png = Buffer.from(shot[1], 'base64');
+    if (png.length) {
+      fs.writeFileSync(path.join(dir, 'render.png'), png);
+      patch.render = 'render.png';
+    }
+  }
+  setMeta(rec.key, patch);
   json(res, 200, { ok: true, bytes: buf.length, name: rec.note || rec.id });
 }
 

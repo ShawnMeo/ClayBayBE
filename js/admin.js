@@ -92,6 +92,18 @@
     }
   }
 
+  /* Render the model to a PNG for its thumbnail. Non-fatal: if the renderer
+     is unavailable the piece just keeps whatever thumbnail it had. */
+  async function snapshot(buffer) {
+    try {
+      const mod = await import('/js/glb-snapshot.js');
+      return await mod.snapshotGlb(buffer, 640);
+    } catch (err) {
+      console.warn('snapshot failed, keeping the existing thumbnail', err);
+      return null;
+    }
+  }
+
   /* Attach a finished .glb to a submission. This replaces what used to be
      "drop model.glb in the folder" — Blobs has no folder to drop into. */
   function pickModel(piece, btn) {
@@ -116,7 +128,15 @@
       file
         .arrayBuffer()
         .then((raw) => optimize(raw, file.size))
-        .then(({ buffer, before, after }) => {
+        .then(async (res) => {
+          // Render the finished model for its thumbnail. Until now a piece
+          // showed the maker's reference photo, which is the input, not the
+          // work — and looked nothing like it on the shelf.
+          btn.textContent = 'Rendering…';
+          res.thumb = await snapshot(res.buffer);
+          return res;
+        })
+        .then(({ buffer, before, after, thumb }) => {
           // Base64 inflates by ~33%, so the cap is on the encoded payload.
           if (after > 4 * 1024 * 1024) {
             throw new Error(
@@ -127,7 +147,7 @@
           return api('/api/admin/publish', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ piece: piece.key, glb: toDataUrl(buffer) }),
+            body: JSON.stringify({ piece: piece.key, glb: toDataUrl(buffer), thumb }),
           }).then((d) => ({ d, before, after }));
         })
         .then(({ d, before, after }) => {

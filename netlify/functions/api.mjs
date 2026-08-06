@@ -467,6 +467,18 @@ export default async (req, context) => {
         return json(400, { error: 'That is not a .glb file.' });
 
       await files().set(`${rec.key}/model.glb`, buf);
+
+      // A render of the finished model, so the shelf shows the piece rather
+      // than the maker's reference photo — that is the input, not the work.
+      const shot = /^data:image\/png;base64,(.*)$/s.exec(String(body.thumb || ''));
+      if (shot) {
+        const png = Buffer.from(shot[1], 'base64');
+        if (png.length) {
+          await files().set(`${rec.key}/render.png`, png);
+          rec.thumb = `api/blob/${rec.key}/render.png`;
+        }
+      }
+
       rec.status = 'done';
       rec.model = `api/blob/${rec.key}/model.glb`;
       rec.modelBytes = buf.length;
