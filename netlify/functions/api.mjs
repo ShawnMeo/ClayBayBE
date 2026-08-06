@@ -196,7 +196,24 @@ export default async (req, context) => {
       const user = await currentUser(req);
       if (!user) return json(200, { user: null });
       const db = await getJson('accounts', { users: {}, sessions: {} });
-      return json(200, { user, coins: db.users[user]?.coins ?? 0, price: MODEL_PRICE, admin: isAdmin(user) });
+      return json(200, { user, coins: db.users[user]?.coins ?? 0, price: MODEL_PRICE, admin: isAdmin(user), avatar: db.users[user]?.avatar || null });
+    }
+
+    /* POST /api/avatar { avatar } — pick your profile mark. */
+    if (route === 'avatar' && method === 'POST') {
+      const user = await currentUser(req);
+      if (!user) return json(401, { error: 'Please sign in again.' });
+      const body = await req.json().catch(() => ({}));
+      // "<shape>.<colour>", both from a known set — validated on the client too,
+      // but the server is what actually gets stored.
+      const avatar = String(body.avatar || '');
+      if (!/^[a-z]{2,12}.[a-z]{2,12}$/.test(avatar))
+        return json(400, { error: 'Unknown avatar.' });
+      const db = await getJson('accounts', { users: {}, sessions: {} });
+      if (!db.users[user]) return json(401, { error: 'Please sign in again.' });
+      db.users[user].avatar = avatar;
+      await putJson('accounts', db);
+      return json(200, { ok: true, avatar });
     }
 
     /* ---- shop ---- */
@@ -342,7 +359,7 @@ export default async (req, context) => {
         pendingListings: all.filter((p) => p.listing === 'pending'),
         pendingUploads: all.filter((p) => p.status === 'pending'),
         live: all.filter((p) => p.listing === 'approved'),
-        users: Object.entries(db.users || {}).map(([name, a]) => ({ name, coins: a.coins, created: a.created })),
+        users: Object.entries(db.users || {}).map(([name, a]) => ({ name, coins: a.coins, created: a.created, avatar: a.avatar || null })),
       });
     }
 

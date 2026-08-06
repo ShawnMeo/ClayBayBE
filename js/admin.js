@@ -187,12 +187,14 @@
       .slice()
       .sort((a, b) => (b.coins || 0) - (a.coins || 0))
       .forEach((u) => {
-        C.appendChild(
-          row({
-            title: u.name || '(unnamed)',
-            meta: `${(u.coins || 0).toLocaleString()} Coins · joined ${esc(ago(u.created))}`,
-          })
-        );
+        const A = window.__AVATARS__;
+        const el = row({
+          title: u.name || '(unnamed)',
+          meta: `${(u.coins || 0).toLocaleString()} Coins · joined ${esc(ago(u.created))}`,
+        });
+        // Show each collector's mark rather than an empty thumbnail well.
+        if (A) el.querySelector('.ad-thumb').innerHTML = A.svg(u.avatar || A.forName(u.name));
+        C.appendChild(el);
       });
   }
 

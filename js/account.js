@@ -24,6 +24,7 @@
   let coins = null;
   let price = 200;
   let admin = false;
+  let avatar = null; // "<shape>.<colour>", null until chosen
   let staged = []; // { file, view, dataUrl }
   let projects = [];
   let polling = null;
@@ -46,6 +47,7 @@
         coins = typeof d.coins === 'number' ? d.coins : null;
         price = d.price || price;
         admin = !!d.admin;
+        avatar = d.avatar || null;
         showAdminLink();
       })
       .catch(() => {
@@ -81,6 +83,7 @@
     user = null;
     coins = null;
     admin = false;
+    avatar = null;
     showAdminLink();
     projects = [];
     staged = [];
@@ -281,7 +284,8 @@
         <button class="cb-link" id="cb-out" type="button">Sign out</button>
       </div>
       <div class="cb-who" id="cb-identity">
-        <span class="cb-avatar">${esc(user[0].toUpperCase())}</span>
+        <button class="cb-avatar" id="cb-avatar" type="button"
+                title="Change your mark" aria-label="Change your mark">${avatarSvg()}</button>
         <span class="cb-name-wrap">
           <span>${esc(user)}</span>
           <span class="cb-coins" id="cb-coins">${coins === null ? '—' : coins.toLocaleString()} Coins</span>
@@ -304,6 +308,8 @@
       </div>`;
 
     $('cb-out').addEventListener('click', signOut);
+    const ava = $('cb-avatar');
+    if (ava) ava.addEventListener('click', () => ($('cb-avatars') ? closeAvatarPicker() : openAvatarPicker()));
     const add = $('cb-add');
     const panel = $('cb-uploader');
     add.addEventListener('click', () => {
@@ -411,6 +417,67 @@
       ul.appendChild(li);
     }
   }
+
+  /* ---------- avatars ----------
+     Everyone has a mark: your chosen one, or a stable one derived from your
+     name until you pick. Drawn as inline SVG by js/avatars.js. */
+  const avatarSvg = (id, size) => {
+    const A = window.__AVATARS__;
+    if (!A) return '';
+    return A.svg(id || avatar || A.forName(user), size);
+  };
+
+  function openAvatarPicker() {
+    const A = window.__AVATARS__;
+    if (!A) return;
+    const host = $('cb-account');
+    if (!host || $('cb-avatars')) return; // already open
+
+    const box = document.createElement('div');
+    box.className = 'cb-avatars';
+    box.id = 'cb-avatars';
+    box.innerHTML = `<p class="cb-hint">Pick your mark.</p><div class="cb-avagrid"></div>`;
+    const grid = box.querySelector('.cb-avagrid');
+
+    const current = avatar || A.forName(user);
+    for (const opt of A.all()) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'cb-ava' + (opt.id === current ? ' on' : '');
+      b.title = opt.label;
+      b.setAttribute('aria-label', opt.label);
+      b.innerHTML = A.svg(opt.id);
+      b.addEventListener('click', () => chooseAvatar(opt.id));
+      grid.appendChild(b);
+    }
+    // Sits under the identity row, above the uploader.
+    const anchor = $('cb-identity');
+    if (anchor && anchor.parentElement) anchor.parentElement.insertBefore(box, anchor.nextSibling);
+    else host.appendChild(box);
+  }
+
+  const closeAvatarPicker = () => {
+    const box = $('cb-avatars');
+    if (box) box.remove();
+  };
+
+  const chooseAvatar = (id) =>
+    fetch('/api/avatar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ avatar: id }),
+    })
+      .then(async (r) => {
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(d.error || `Could not save (${r.status})`);
+        return d;
+      })
+      .then((d) => {
+        avatar = d.avatar;
+        closeAvatarPicker();
+        render();
+      })
+      .catch((e) => toast(e.message));
 
   /* An Admin link appears in the header only for admin accounts. Hiding it
      is convenience, not security — /api/admin is enforced server-side. */

@@ -86,3 +86,6 @@
 }
 .ad-stamp:empty{display:none}
 .ad-diag{font-family:var(--sans); font-size:10px; color:var(--ink-faint)}
+
+/* Collector marks in the users list. */
+.ad-thumb svg{width:100%; height:100%; display:block; padding:6px}

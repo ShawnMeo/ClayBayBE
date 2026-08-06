@@ -193,7 +193,7 @@ function me(req, res) {
   if (!user) return json(res, 200, { user: null });
   const db = loadAccounts();
   const acct = db.users[user];
-  json(res, 200, { user, coins: acct ? acct.coins : 0, price: MODEL_PRICE, admin: isAdmin(user) });
+  json(res, 200, { user, coins: acct ? acct.coins : 0, price: MODEL_PRICE, admin: isAdmin(user), avatar: (acct && acct.avatar) || null });
 }
 
 const readBody = (req, limit) =>
@@ -632,6 +632,23 @@ async function buy(req, res) {
   json(res, 200, { ok: true, coins: acct.coins, name: entry.name || file });
 }
 
+/* POST /api/avatar { avatar } — pick your profile mark. */
+async function setAvatar(req, res) {
+  const user = requireUser(req, res);
+  if (!user) return;
+  let body;
+  try { body = JSON.parse((await readBody(req, 4 * 1024)).toString('utf8')); }
+  catch { return json(res, 400, { error: 'Bad request body.' }); }
+  const avatar = String(body.avatar || '');
+  if (!/^[a-z]{2,12}.[a-z]{2,12}$/.test(avatar))
+    return json(res, 400, { error: 'Unknown avatar.' });
+  const db = loadAccounts();
+  if (!db.users[user]) return json(res, 401, { error: 'Please sign in again.' });
+  db.users[user].avatar = avatar;
+  saveAccounts(db);
+  json(res, 200, { ok: true, avatar });
+}
+
 /* GET /api/admin — everything awaiting review. */
 function admin(req, res) {
   const user = currentUser(req);
@@ -643,7 +660,7 @@ function admin(req, res) {
     pendingListings: all.filter((p) => p.listing === 'pending'),
     pendingUploads: all.filter((p) => p.status === 'pending'),
     live: all.filter((p) => p.listing === 'approved'),
-    users: Object.entries(db.users || {}).map(([name, a]) => ({ name, coins: a.coins, created: a.created })),
+    users: Object.entries(db.users || {}).map(([name, a]) => ({ name, coins: a.coins, created: a.created, avatar: a.avatar || null })),
   });
 }
 
@@ -731,6 +748,7 @@ http
     if (url.pathname === '/api/shop' && req.method === 'GET') return shop(req, res);
     if (url.pathname === '/api/buy' && req.method === 'POST') return buy(req, res).catch(fail);
     if (url.pathname === '/api/list' && req.method === 'POST') return listPiece(req, res).catch(fail);
+    if (url.pathname === '/api/avatar' && req.method === 'POST') return setAvatar(req, res).catch(fail);
     if (url.pathname === '/api/admin' && req.method === 'GET') return admin(req, res);
     if (url.pathname === '/api/admin/listing' && req.method === 'POST') return adminListing(req, res).catch(fail);
     if (url.pathname === '/api/submit' && req.method === 'POST') return submit(req, res).catch(fail);
