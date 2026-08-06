@@ -240,13 +240,8 @@ export default async (req, context) => {
       if (trades.some((t) => t.status === 'pending' && (t.offer === rec.key || t.want === rec.key)))
         return json(409, { error: "That piece is tied up in a trade." });
 
-      if (body.listed === false) {
-        // Withdrawing works at any stage.
-        rec.listing = null;
-        rec.listedAt = null;
-        await putJson(pieceKey(rec.key), rec);
-        return json(200, { ok: true, listing: null });
-      }
+      if (body.listed === false)
+        return json(403, { error: "Listings can't be withdrawn — only an admin can take one down." });
       if (rec.listing === 'approved') return json(409, { error: 'That piece is already for sale.' });
       if (rec.listing === 'pending') return json(409, { error: 'That piece is already awaiting review.' });
       rec.listing = 'pending'; // an admin has to approve it before it goes live

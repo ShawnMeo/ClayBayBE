@@ -538,10 +538,8 @@ async function listPiece(req, res) {
   if (loadTrades().some((t) => t.status === 'pending' && (t.offer === rec.key || t.want === rec.key)))
     return json(res, 409, { error: 'That piece is tied up in a trade.' });
 
-  if (body.listed === false) {
-    setMeta(rec.key, { listing: null, listedAt: null });
-    return json(res, 200, { ok: true, listing: null });
-  }
+  if (body.listed === false)
+    return json(res, 403, { error: "Listings can't be withdrawn — only an admin can take one down." });
   if (rec.listing === 'approved') return json(res, 409, { error: 'That piece is already for sale.' });
   if (rec.listing === 'pending') return json(res, 409, { error: 'That piece is already awaiting review.' });
   setMeta(rec.key, { listing: 'pending', listedAt: new Date().toISOString() });

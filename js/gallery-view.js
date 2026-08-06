@@ -49,30 +49,26 @@
       });
   }
 
-  /* Offer one of your pieces to the store, or withdraw it. Listings are
-     reviewed by an admin before they go on sale, so this only ever moves a
-     piece to "pending" — it never puts it straight on the shelf. */
+  /* Offer one of your pieces to the store. Listings are reviewed by an admin
+     before they go on sale, and once sent they cannot be withdrawn — pending
+     goes to review, approved lands on the shelf until someone buys it (or an
+     admin takes it down). */
   function listPiece(p, btn) {
-    const withdraw = p.listing === 'pending' || p.listing === 'approved';
     const label = p.note || p.id;
     btn.disabled = true;
-    btn.textContent = withdraw ? 'Withdrawing…' : 'Sending…';
+    btn.textContent = 'Sending…';
     fetch('/api/list', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ piece: p.key, listed: !withdraw }),
+      body: JSON.stringify({ piece: p.key, listed: true }),
     })
       .then(async (r) => {
         const d = await r.json().catch(() => ({}));
         if (!r.ok) throw new Error(d.error || `Failed (${r.status})`);
         return d;
       })
-      .then((d) => {
-        toast(
-          d.listing === 'pending'
-            ? `${label} sent for review — it goes on sale once approved.`
-            : `${label} withdrawn from the store.`
-        );
+      .then(() => {
+        toast(`${label} sent for review — it goes on sale once approved.`);
         return loadOwned().then(build);
       })
       .catch((e) => {
@@ -114,6 +110,11 @@
     }
     const label = $('mode-label');
     if (label) label.textContent = THIS_LABEL[view];
+
+    // Keep the view in the URL so a refresh lands back on the same view
+    // instead of resetting to the 3D stage. replaceState, not location.hash,
+    // so cycling views doesn't pile up history entries.
+    history.replaceState(null, '', view === 'viewer' ? location.pathname : '#' + view);
 
     if (open) {
       build();
@@ -253,22 +254,27 @@
       tag.textContent = p.traded ? 'Traded' : p.boughtFromShelf ? 'Bought' : 'Yours';
       tile.querySelector('.gv-thumb').appendChild(tag);
 
-      // Sell pill, mirroring Buy on the shelf. Listings need approval first.
+      // Sell pill, mirroring Buy on the shelf. Listings need approval first,
+      // and once sent there is no withdrawing: pending and approved are
+      // status badges, not buttons.
       const sell = document.createElement('button');
       sell.className = 'gv-buy gv-sell';
       sell.type = 'button';
       if (p.listing === 'pending') {
         sell.textContent = 'Awaiting review';
         sell.classList.add('is-pending');
+        sell.disabled = true;
       } else if (p.listing === 'approved') {
-        sell.textContent = 'For sale — withdraw';
+        sell.textContent = 'For sale';
         sell.classList.add('is-live');
+        sell.disabled = true;
       } else if (p.listing === 'rejected') {
         sell.textContent = 'Not approved — retry';
+        sell.addEventListener('click', () => listPiece(p, sell));
       } else {
         sell.innerHTML = `Add to store <span class="gv-price">${PRICE}</span>`;
+        sell.addEventListener('click', () => listPiece(p, sell));
       }
-      sell.addEventListener('click', () => listPiece(p, sell));
       tile.querySelector('.gv-actions').appendChild(sell);
 
       // A listed piece reads differently at a glance.
@@ -365,7 +371,10 @@
     window.matchMedia('(max-width: 620px)').addEventListener('change', () => {
       placeStudio();
     });
-    build();
+    // Restore the view a refresh (or shared link) points at.
+    const fromHash = location.hash.replace('#', '');
+    if (VIEWS.includes(fromHash) && fromHash !== 'viewer') setMode(fromHash);
+    else build();
   };
 
   if (window.__SHELF__) start();
