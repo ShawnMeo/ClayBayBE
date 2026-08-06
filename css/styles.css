@@ -681,3 +681,11 @@ body.gallery-open .quote{display:none !important}
 @media (prefers-reduced-motion:reduce){
   .sl-spinner{animation-duration:2.4s}
 }
+
+/* Divider before your own listings at the foot of the shelf. */
+.gv-subhead{
+  grid-column:1/-1; margin:14px 0 0;
+  font-family:var(--sans); font-size:10px; font-weight:600;
+  letter-spacing:.16em; text-transform:uppercase; color:var(--ink-faint);
+  border-top:1px solid var(--line); padding-top:18px;
+}

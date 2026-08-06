@@ -195,8 +195,12 @@
       return;
     }
 
-    // Pieces other collectors have listed, shown alongside the house stock.
-    listings.forEach((l) => {
+    // Your own listings go last: you can't buy them, so they'd only push the
+    // things you *can* buy further down the page.
+    const others = listings.filter((l) => !l.mine);
+    const mine = listings.filter((l) => l.mine);
+
+    const addListing = (l) => {
       const tile = card({
         thumb: l.thumbUrl || null,
         name: l.name,
@@ -229,7 +233,9 @@
       }
       tile.querySelector('.gv-actions').appendChild(act);
       grid.appendChild(tile);
-    });
+    };
+
+    others.forEach(addListing);
 
     shelf.forEach(({ meta, index }) => {
       const tile = card({
@@ -251,6 +257,16 @@
       tile.querySelector('.gv-actions').appendChild(buy);
       grid.appendChild(tile);
     });
+
+    // Finally your own listings, under a divider so it's clear they're yours
+    // and not part of what's on offer to you.
+    if (mine.length) {
+      const sep = document.createElement('p');
+      sep.className = 'gv-subhead';
+      sep.textContent = mine.length === 1 ? 'Your listing' : `Your ${mine.length} listings`;
+      grid.appendChild(sep);
+      mine.forEach(addListing);
+    }
   };
 
   const buildOwned = (grid) => {
