@@ -89,3 +89,23 @@
 
 /* Collector marks in the users list. */
 .ad-thumb svg{width:100%; height:100%; display:block; padding:6px}
+
+/* Reference photos on a pending submission — the thing you actually need to
+   see to build the model. Each links to the full-size original. */
+.ad-shots{
+  grid-column:1/-1; display:flex; flex-wrap:wrap; gap:8px;
+  margin:4px 0 2px;
+}
+.ad-shot{
+  display:block; width:78px; text-decoration:none; color:inherit;
+}
+.ad-shot img{
+  width:78px; height:78px; object-fit:cover; display:block;
+  border-radius:8px; border:1px solid var(--line); background:var(--paper-2);
+}
+.ad-shot:hover img{border-color:var(--glaze)}
+.ad-shot span{
+  display:block; margin-top:3px; text-align:center;
+  font-family:var(--sans); font-size:8.5px; letter-spacing:.12em;
+  text-transform:uppercase; color:var(--ink-faint);
+}

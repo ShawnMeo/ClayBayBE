@@ -138,13 +138,33 @@
     $('c-uploads').textContent = pendingUploads.length;
     if (!pendingUploads.length) U.innerHTML = '<p class="ad-empty">No submissions waiting.</p>';
     pendingUploads.forEach((p) => {
-      U.appendChild(
-        row({
-          thumb: p.thumb,
-          title: p.note || '(untitled)',
-          meta: `${esc(p.creator)} · ${p.images} photo${p.images === 1 ? '' : 's'} · ${esc(ago(p.submitted))} · <code>${esc(p.key)}</code>`,
-        })
-      );
+      // `images` is the array of image records, not a count.
+      const shots = Array.isArray(p.images) ? p.images : [];
+      const el = row({
+        thumb: p.thumb,
+        title: p.note || '(untitled)',
+        meta: `${esc(p.creator)} · ${shots.length} photo${shots.length === 1 ? '' : 's'} · ${esc(ago(p.submitted))}`,
+      });
+
+      // The reference photos themselves — this is the whole point of the
+      // queue, so link straight to each one at full size.
+      if (shots.length) {
+        const strip = document.createElement('div');
+        strip.className = 'ad-shots';
+        for (const img of shots) {
+          const a = document.createElement('a');
+          a.className = 'ad-shot';
+          a.href = `/api/blob/${p.key}/${img.file}`;
+          a.target = '_blank';
+          a.rel = 'noopener';
+          a.title = `${img.view || 'view'} — open full size`;
+          a.innerHTML = `<img src="${esc(a.getAttribute('href'))}" alt="${esc(img.view || '')}" loading="lazy">
+                         <span>${esc(img.view || '')}</span>`;
+          strip.appendChild(a);
+        }
+        el.appendChild(strip);
+      }
+      U.appendChild(el);
     });
 
     /* ---- live listings ---- */
