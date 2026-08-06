@@ -39,11 +39,17 @@
   --glaze:#8FAEDA; --wood:#9AA3B0; --on-glaze:#14161A; --clay:#D08A62;
   --shadow:0 10px 30px rgba(0,0,0,.45), 0 2px 6px rgba(0,0,0,.3);
 }
-/* Thumbnails are rendered with a transparent background (build-thumbs.js),
-   so they sit on whatever the page colour is with no blending tricks. */
+/* Shelf thumbnails are rendered transparent (build-thumbs.js) so they sit on
+   any page colour. Pieces bought before that change kept an opaque white copy
+   in storage, and those cannot be regenerated — so give every thumbnail a
+   light well in dark mode. Transparent ones look intentional on it, opaque
+   ones stop glaring as full-bleed white tiles. */
 :root[data-theme="dark"] .gv-thumb,
 :root[data-theme="dark"] .spec-btn .thumb,
-:root[data-theme="dark"] .ad-thumb{background:var(--paper-2)}
+:root[data-theme="dark"] .ad-thumb{background:#EDEEF0}
+:root[data-theme="dark"] .gv-thumb img,
+:root[data-theme="dark"] .spec-btn .thumb img,
+:root[data-theme="dark"] .ad-thumb img{filter:brightness(.97)}
 
 *{box-sizing:border-box}
 html,body{margin:0;padding:0}

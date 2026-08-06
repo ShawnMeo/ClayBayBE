@@ -3,6 +3,7 @@
    Run this after adding or removing models:  node build-manifest.js  */
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 
 const MODELS_DIR = path.join(__dirname, 'models');
 const OUT = path.join(MODELS_DIR, 'manifest.json');
@@ -45,7 +46,14 @@ const models = fs
     const entry = { file, name, size: fs.statSync(path.join(MODELS_DIR, file)).size };
     // Gallery mode uses models/thumbs/<same-name>.png when one exists.
     const thumb = file.replace(/\.(glb|gltf)$/i, '') + '.png';
-    if (fs.existsSync(path.join(MODELS_DIR, 'thumbs', thumb))) entry.thumb = 'thumbs/' + thumb;
+    const thumbPath = path.join(MODELS_DIR, 'thumbs', thumb);
+    if (fs.existsSync(thumbPath)) {
+      // Thumbnails are served immutable for a year, so a regenerated one would
+      // never reach anyone who has already seen the old file. Stamp the URL
+      // with a content hash, same trick as build-cachebust for css/js.
+      const h = crypto.createHash('sha256').update(fs.readFileSync(thumbPath)).digest('hex').slice(0, 8);
+      entry.thumb = `thumbs/${thumb}?v=${h}`;
+    }
     return entry;
   });
 
