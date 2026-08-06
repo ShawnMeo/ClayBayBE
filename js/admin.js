@@ -58,6 +58,40 @@
     return el;
   };
 
+  /* Base64 data URL from an ArrayBuffer, chunked so a large model doesn't
+     blow the argument limit on String.fromCharCode. */
+  const toDataUrl = (buffer) => {
+    const bytes = new Uint8Array(buffer);
+    let bin = '';
+    for (let i = 0; i < bytes.length; i += 0x8000) {
+      bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+    }
+    return 'data:model/gltf-binary;base64,' + btoa(bin);
+  };
+
+  /* Shrink a model before it is uploaded — the same simplify + quantize pass
+     the shelf models went through (6.5 MB -> ~500 KB). Doing it here rather
+     than server-side means a raw photogrammetry export never has to fit
+     through the request size limit.
+
+     If the optimizer can't load or the file defeats it, fall through with the
+     original: publishing a large model beats refusing to publish at all. */
+  async function optimize(raw, originalSize) {
+    try {
+      const mod = await import('/js/glb-optimize.js');
+      const out = await mod.optimizeGlb(raw);
+      // Trust it only if it actually helped and produced something sane.
+      if (out.byteLength > 0 && out.byteLength < raw.byteLength) {
+        return { buffer: out, before: originalSize, after: out.byteLength };
+      }
+      return { buffer: raw, before: originalSize, after: raw.byteLength };
+    } catch (err) {
+      console.warn('optimise failed, publishing the original', err);
+      toast('Could not optimise that model — publishing it as-is.');
+      return { buffer: raw, before: originalSize, after: raw.byteLength };
+    }
+  }
+
   /* Attach a finished .glb to a submission. This replaces what used to be
      "drop model.glb in the folder" — Blobs has no folder to drop into. */
   function pickModel(piece, btn) {
@@ -67,36 +101,41 @@
     input.addEventListener('change', () => {
       const file = input.files && input.files[0];
       if (!file) return;
-      if (file.size > 5 * 1024 * 1024) {
-        toast(`That model is ${(file.size / 1048576).toFixed(1)} MB — optimise it under 5 MB first.`);
-        return;
-      }
+      // No size gate on the input: optimisation happens before upload, so a
+      // raw export is expected to be large. Only the *result* has to fit,
+      // which is checked after optimising.
       btn.disabled = true;
-      btn.textContent = 'Publishing…';
+      btn.textContent = 'Optimising…';
 
-      const fr = new FileReader();
-      fr.onerror = () => {
-        toast('Could not read that file.');
+      const fail = (msg) => {
+        toast(msg);
         btn.disabled = false;
         btn.textContent = 'Publish model';
       };
-      fr.onload = () => {
-        api('/api/admin/publish', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ piece: piece.key, glb: fr.result }),
+
+      file
+        .arrayBuffer()
+        .then((raw) => optimize(raw, file.size))
+        .then(({ buffer, before, after }) => {
+          // Base64 inflates by ~33%, so the cap is on the encoded payload.
+          if (after > 4 * 1024 * 1024) {
+            throw new Error(
+              `Still ${(after / 1048576).toFixed(1)} MB after optimising — simplify it further before publishing.`
+            );
+          }
+          btn.textContent = 'Publishing…';
+          return api('/api/admin/publish', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ piece: piece.key, glb: toDataUrl(buffer) }),
+          }).then((d) => ({ d, before, after }));
         })
-          .then((d) => {
-            toast(`Published "${d.name}" — ${Math.round(d.bytes / 1024)} KB. It's in their collection now.`);
-            load();
-          })
-          .catch((e) => {
-            toast(e.message);
-            btn.disabled = false;
-            btn.textContent = 'Publish model';
-          });
-      };
-      fr.readAsDataURL(file);
+        .then(({ d, before, after }) => {
+          const saved = before && after ? ` (${Math.round(100 - (after / before) * 100)}% smaller)` : '';
+          toast(`Published "${d.name}" — ${Math.round(d.bytes / 1024)} KB${saved}.`);
+          load();
+        })
+        .catch((e) => fail(e.message));
     });
     input.click();
   }
